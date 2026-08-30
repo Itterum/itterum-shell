@@ -1,0 +1,9 @@
+{
+  "lsp": {
+    "qmljs": {
+      "binary": {
+        "arguments": ["-E", "--no-cmake-calls"]
+      }
+    }
+  }
+}

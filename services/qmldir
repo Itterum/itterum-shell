@@ -1,0 +1,2 @@
+singleton Compositor 1.0 Compositor.qml
+singleton NiriBackend 1.0 NiriBackend.qml

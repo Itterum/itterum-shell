@@ -2,3 +2,8 @@
 # Python bytecode (orchestrator)
 __pycache__/
 *.pyc
+
+# direnv
+.direnv/
+
+**/.qmlls.ini
