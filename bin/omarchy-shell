@@ -10,6 +10,18 @@ if [[ ${1:-} == "-q" ]]; then
   shift
 fi
 
+if [[ -z ${OMARCHY_PATH:-} ]]; then
+  script_dir=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+  OMARCHY_PATH="${script_dir}/.."
+fi
+
+export OMARCHY_PATH
+case ":$PATH:" in
+  *":$OMARCHY_PATH/bin:"*) ;;
+  *) PATH="$OMARCHY_PATH/bin${PATH:+:$PATH}" ;;
+esac
+export PATH
+
 fail() {
   (( QUIET )) && exit 0
   echo "$1" >&2
@@ -37,7 +49,6 @@ USAGE
 fi
 
 (( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
-[[ -n ${OMARCHY_PATH:-} ]] || fail "OMARCHY_PATH is not set"
 [[ -f $OMARCHY_PATH/shell/shell.qml ]] || fail "omarchy-shell config not found: $OMARCHY_PATH/shell/shell.qml"
 
 # qs matches instances by display, and a caller from outside the session (an

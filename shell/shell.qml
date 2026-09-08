@@ -23,9 +23,16 @@ ShellRoot {
   property string home: Quickshell.env("HOME")
 
   // The omarchy-shell host is the long-running entry point. Plugins live in
-  // sibling directories under plugins/. OMARCHY_PATH is provided by the uwsm
-  // session environment and is the single source of truth for this checkout.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  // sibling directories under plugins/. Prefer OMARCHY_PATH when set, otherwise
+  // derive the checkout root from the shell directory.
+  property string omarchyPath: {
+    var path = Quickshell.env("OMARCHY_PATH")
+    if (path && path.length > 0) return path
+    var shellDir = Quickshell.shellDir || ""
+    if (!shellDir.length) return ""
+    if (shellDir.slice(-6) === "/shell") return shellDir.slice(0, -6)
+    return shellDir
+  }
   readonly property string shellPath: omarchyPath + "/shell"
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
   readonly property string defaultsPath: omarchyPath + "/config/omarchy/shell.json"

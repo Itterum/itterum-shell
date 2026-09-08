@@ -14,6 +14,18 @@
 # A package upgrade rewriting $OMARCHY_PATH/shell would otherwise reload it
 # against a half-written tree, and that failed reload leaves a second engine
 # generation behind that turns the next restart's IPC kill into a crash.
+if [[ -z ${OMARCHY_PATH:-} ]]; then
+  script_dir=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+  OMARCHY_PATH="${script_dir}/.."
+fi
+
+export OMARCHY_PATH
+case ":$PATH:" in
+  *":$OMARCHY_PATH/bin:"*) ;;
+  *) PATH="$OMARCHY_PATH/bin${PATH:+:$PATH}" ;;
+esac
+export PATH
+
 run_shell() {
   QS_DISABLE_FILE_WATCHER=1 QS_NO_RELOAD_POPUP=1 \
     systemd-cat -t omarchy-shell -- quickshell -n -p "$OMARCHY_PATH/shell" &
