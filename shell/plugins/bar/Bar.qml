@@ -26,6 +26,8 @@ Item {
   // Injected by the host shell. Used for shell-wide actions such as opening
   // settings and persisting inline widget state.
   property var shell: null
+  // Shared facade to backend services for widgets during migration.
+  property var backend: null
   // Manifest for the active bar option. Present for custom bars and useful for
   // diagnostics; the built-in bar does not otherwise need it.
   property var manifest: null
@@ -1999,8 +2001,10 @@ Item {
     function injectProps() {
       var target = activeItem
       if (!target) return
-      if ("bar" in target) target.bar = firstParty
+      var barValue = firstParty
         ? root : root.pluginBarApiFor(pluginApiId, moduleName, registered)
+      if ("bar" in target) target.bar = barValue
+      if ("backend" in target) target.backend = root.backend
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
     }

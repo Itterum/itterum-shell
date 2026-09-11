@@ -19,6 +19,7 @@ ShellRoot {
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
+  property Backend backend: Backend { }
 
   property string home: Quickshell.env("HOME")
 
@@ -223,6 +224,7 @@ ShellRoot {
     if ("barWidgetRegistry" in target) target.barWidgetRegistry = shell.pluginBarWidgetRegistryFor(manifest)
     if ("pluginRegistry" in target) target.pluginRegistry = shell.pluginRegistryFor(manifest)
     if ("barConfig" in target) target.barConfig = shell.barConfigFor(manifest)
+    if ("backend" in target) target.backend = shell.backend
     shell.bar = target
   }
 
@@ -235,6 +237,7 @@ ShellRoot {
       barConfig: shell.barConfig
       shell: shell
       manifest: shell.barManifestFor(shell.defaultBarId)
+      backend: shell.backend
     }
   }
 
