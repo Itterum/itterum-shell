@@ -1,5 +1,5 @@
-   0.019664439s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint: fingerprint error for daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon)/Check { test: false }/TargetInner { name: "daemon", doc: true, ..: with_path("/home/itterum/Dev/itterum-shell/daemon/src/main.rs", Edition2024) }
-   0.019679207s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/itterum/Dev/itterum-shell/daemon/target/debug/.fingerprint/daemon-8415ea47f28e84e0/bin-daemon`
+   0.019033483s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint: fingerprint error for daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon)/Check { test: false }/TargetInner { name: "daemon", doc: true, ..: with_path("/home/itterum/Dev/itterum-shell/daemon/src/main.rs", Edition2024) }
+   0.019047700s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/itterum/Dev/itterum-shell/daemon/target/debug/.fingerprint/daemon-9f93b9065878821c/bin-daemon`
 
 Caused by:
     No such file or directory (os error 2)
@@ -40,8 +40,8 @@ Stack backtrace:
   23: <unknown>
   24: __libc_start_main
   25: <unknown>
-   0.035747913s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint: fingerprint error for daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon)/Check { test: true }/TargetInner { name: "daemon", doc: true, ..: with_path("/home/itterum/Dev/itterum-shell/daemon/src/main.rs", Edition2024) }
-   0.035759144s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/itterum/Dev/itterum-shell/daemon/target/debug/.fingerprint/daemon-3f9449a31305c84e/test-bin-daemon`
+   0.035090677s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint: fingerprint error for daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon)/Check { test: true }/TargetInner { name: "daemon", doc: true, ..: with_path("/home/itterum/Dev/itterum-shell/daemon/src/main.rs", Edition2024) }
+   0.035102008s  INFO prepare_target{force=false package_id=daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon) target="daemon"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/itterum/Dev/itterum-shell/daemon/target/debug/.fingerprint/daemon-bdfe8e70211e048d/test-bin-daemon`
 
 Caused by:
     No such file or directory (os error 2)
@@ -83,6 +83,6 @@ Stack backtrace:
   24: __libc_start_main
   25: <unknown>
     Checking daemon v0.1.0 (/home/itterum/Dev/itterum-shell/daemon)
-error: could not compile `daemon` (bin "daemon") due to 2 previous errors
+error: could not compile `daemon` (bin "daemon" test) due to 28 previous errors
 warning: build failed, waiting for other jobs to finish...
-error: could not compile `daemon` (bin "daemon" test) due to 2 previous errors
+error: could not compile `daemon` (bin "daemon") due to 28 previous errors

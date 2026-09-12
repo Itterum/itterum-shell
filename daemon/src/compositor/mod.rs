@@ -2,11 +2,13 @@ mod events;
 mod hyprland;
 mod models;
 mod niri;
+mod service;
 
 pub use events::*;
 pub use hyprland::*;
 pub use models::*;
 pub use niri::*;
+pub use service::*;
 
 pub trait Compositor {
     async fn get_workspaces(&self) -> Result<Vec<Workspace>, CompositorError>;

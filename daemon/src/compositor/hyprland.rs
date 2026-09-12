@@ -3,11 +3,11 @@ use super::*;
 pub struct Hyprland;
 
 impl Compositor for Hyprland {
-    async fn workspaces(&self) -> Result<Vec<Workspace>, CompositorError> {
+    async fn get_workspaces(&self) -> Result<Vec<Workspace>, CompositorError> {
         todo!()
     }
 
-    async fn windows(&self) -> Result<Vec<Window>, CompositorError> {
+    async fn get_windows(&self) -> Result<Vec<Window>, CompositorError> {
         todo!()
     }
 
