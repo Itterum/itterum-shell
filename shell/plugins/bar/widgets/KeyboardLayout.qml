@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
@@ -12,6 +11,7 @@ BarWidget {
 
 
   property string layoutFull: ""
+  readonly property var compositor: root.bar ? root.bar.compositor : null
   // The keyboard the last reading spoke for, which is the one a click switches,
   // and separately the one activelayout named as being typed on. A reading
   // confirms the first is really there, so the click has a keyboard to reach
@@ -43,13 +43,25 @@ BarWidget {
   property bool refreshPending: false
 
   function refresh() {
-    if (queryProc.running) {
-      refreshPending = true
+    if (root.compositor) root.compositor.refresh()
+    root.applyLayout()
+  }
+
+  function applyLayout() {
+    var next = root.compositor ? root.compositor.keyboardLayout : null
+    if (!next) {
+      root.layoutFull = ""
+      root.keyboardName = ""
+      root.layoutCount = 0
+      root.syncNames = []
       return
     }
-
-    refreshPending = false
-    queryProc.running = true
+    root.layoutFull = String(next.name || "")
+    root.keyboardName = String(next.keyboardId || "")
+    root.layoutIndex = Number(next.index || 0)
+    root.layoutCount = Number(next.count || 0)
+    root.multipleLayouts = root.layoutCount > 1
+    root.syncNames = Array.isArray(next.syncIds) ? next.syncIds : []
   }
 
   // Keyboards someone can actually type on, which is not everything Hyprland
@@ -91,8 +103,7 @@ BarWidget {
   function cycleLayout() {
     if (!root.bar || root.layoutCount < 2 || root.syncNames.length === 0) return
     const next = (root.layoutIndex + 1) % root.layoutCount
-    root.bar.run(root.syncNames.map(name =>
-      "hyprctl switchxkblayout " + Util.shellQuote(name) + " " + next).join("; "))
+    root.compositor.switchKeyboardLayout(root.syncNames, next)
     refreshTimer.restart()
   }
 
@@ -102,83 +113,8 @@ BarWidget {
   }
 
   Connections {
-    target: Hyprland
-    function onRawEvent(event) {
-      if (!event || !event.name) return
-      var name = String(event.name)
-      // The event names the keyboard that switched ahead of the layout it moved
-      // to, and that is the keyboard being typed on whatever holds the main flag.
-      if (name === "activelayout") {
-        const named = KeyboardLayoutModel.eventKeyboardName(event)
-        if (named) root.typedKeyboardName = named
-      }
-
-      // A reload that adds a layout to kb_layout decides whether the widget
-      // shows at all, and leaves every keyboard on the layout it was already
-      // reading, so it raises no activelayout to notice it by.
-      if (name.indexOf("activelayout") !== -1 || name === "configreloaded") root.refresh()
-    }
-  }
-
-  Process {
-    id: queryProc
-    command: ["hyprctl", "-j", "devices"]
-    onRunningChanged: {
-      if (running) {
-        stallTimer.restart()
-        return
-      }
-
-      stallTimer.stop()
-      if (root.refreshPending) root.refresh()
-    }
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        let listed
-        try {
-          listed = JSON.parse(text || "{}").keyboards
-        } catch (e) {
-          return
-        }
-
-        // A query the watchdog killed reports nothing at all, and an empty
-        // string parses into the same shape a seat with no keyboards would.
-        // Tell them apart by the list itself, so only a reading that reached
-        // hyprctl gets to speak for the seat.
-        if (!Array.isArray(listed)) return
-
-        const typed = root.typedKeyboards(listed)
-        const kb = root.selectKeyboard(typed)
-        if (!kb || !kb.active_keymap) {
-          // Either the last keyboard has been unplugged, which the label has to
-          // stop describing and the click has to stop naming, or keyboards are
-          // there and none of them reports a keymap. Both leave the shape in
-          // doubt, so keep asking rather than letting a count from before it
-          // changed settle the poll.
-          root.keyboardUnresolved = true
-          if (typed.length === 0) {
-            root.layoutFull = ""
-            root.keyboardName = ""
-          }
-          return
-        }
-
-        root.keyboardUnresolved = false
-        root.keyboardCount = typed.length
-        root.keyboardName = String(kb.name || "")
-        root.multipleLayouts = kb.layout === undefined || String(kb.layout).indexOf(",") !== -1
-        root.layoutIndex = kb.active_layout_index || 0
-        root.layoutCount = kb.layout === undefined ? 0 : String(kb.layout).split(",").length
-        // Buttons and virtual keyboards are included on purpose: they hold the
-        // same list, and leaving them behind is what lets a reading drift onto
-        // one of them later.
-        root.syncNames = listed.filter(k => String(k.layout) === String(kb.layout))
-                               .map(k => String(k.name || ""))
-                               .filter(name => name !== "")
-        root.layoutFull = kb.active_keymap
-      }
-    }
+    target: root.compositor
+    function onKeyboardLayoutChanged() { root.applyLayout() }
   }
 
   // The table only changes when xkb data is upgraded, so read it at startup and
@@ -198,20 +134,6 @@ BarWidget {
     id: refreshTimer
     interval: 600
     onTriggered: root.refresh()
-  }
-
-  // A query that never returns would freeze the label until the shell restarts,
-  // since a Process that is already running can't be re-run. Give up on one that
-  // overstays so the next refresh gets through, and ask again: the reading it
-  // never delivered may have been the only one due on a settled seat, and
-  // nothing else would come back for it.
-  Timer {
-    id: stallTimer
-    interval: 5000
-    onTriggered: {
-      queryProc.running = false
-      refreshTimer.restart()
-    }
   }
 
   // Which keyboard on a crowded seat the label is describing can change without

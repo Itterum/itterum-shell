@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import qs.Commons
+import qs.services.compositor
 
 PopupWindow {
   id: root
@@ -17,7 +17,7 @@ PopupWindow {
   property var borderSpec: Border.localOrSurfaceSpec("popups", "border", borderColor, Color.popups.border, Math.max(1, Style.space(2)))
   property bool open: false
   property bool centerOnBar: false
-  // "click" — uses HyprlandFocusGrab so clicking outside dismisses the popup.
+  // "click" — uses the compositor focus grab so outside clicks dismiss it.
   // "hover" — passive overlay; the owning widget controls open via hover.
   property string triggerMode: "click"
 
@@ -75,11 +75,11 @@ PopupWindow {
     else if (bar.activePopout === coordinatorKey) bar.releasePopout(coordinatorKey)
   }
 
-  // Outside-click dismissal via Hyprland's focus grab. While `active`, input
+  // Outside-click dismissal via the compositor focus grab. While `active`, input
   // is routed only to the listed windows; clicking anywhere else clears the
   // grab and we close the popup. Skipped for hover-mode popups so the cursor
   // can move freely between the trigger and the popup.
-  HyprlandFocusGrab {
+  CompositorFocusGrab {
     active: root.open && root.triggerMode === "click"
     windows: root.anchorWindow ? [root, root.anchorWindow] : [root]
     onCleared: root.close()

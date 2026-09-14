@@ -7,6 +7,7 @@ import qs.Commons
 
 import "plugins/bar"
 import "services"
+import "services/compositor"
 import "services/AuthServiceStore.js" as AuthServiceStore
 
 ShellRoot {
@@ -19,7 +20,17 @@ ShellRoot {
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
-  property Backend backend: Backend { }
+  property Compositor compositor: Compositor { }
+
+  function syncCompositorStyle() {
+    Style.applyCompositorMetrics(compositor.rounding, compositor.gapsOut)
+  }
+
+  Connections {
+    target: compositor
+    function onRoundingChanged() { shell.syncCompositorStyle() }
+    function onGapsOutChanged() { shell.syncCompositorStyle() }
+  }
 
   property string home: Quickshell.env("HOME")
 
@@ -145,6 +156,7 @@ ShellRoot {
   }
 
   Component.onCompleted: {
+    shell.syncCompositorStyle()
     console.log("itterum-shell paths",
       "resourcePath=" + shell.resourcePath,
       "shellDir=" + Quickshell.shellDir,
@@ -225,7 +237,7 @@ ShellRoot {
     if ("barWidgetRegistry" in target) target.barWidgetRegistry = shell.pluginBarWidgetRegistryFor(manifest)
     if ("pluginRegistry" in target) target.pluginRegistry = shell.pluginRegistryFor(manifest)
     if ("barConfig" in target) target.barConfig = shell.barConfigFor(manifest)
-    if ("backend" in target) target.backend = shell.backend
+    if ("compositor" in target) target.compositor = shell.compositor
     shell.bar = target
   }
 
@@ -238,7 +250,7 @@ ShellRoot {
       barConfig: shell.barConfig
       shell: shell
       manifest: shell.barManifestFor(shell.defaultBarId)
-      backend: shell.backend
+      compositor: shell.compositor
     }
   }
 

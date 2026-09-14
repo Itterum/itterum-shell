@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import "IdleModel.js" as IdleModel
@@ -282,7 +281,7 @@ Item {
   }
 
   Connections {
-    target: Hyprland
+    target: root.shell ? root.shell.compositor : null
     function onRawEvent(event) { root.handleHyprlandEvent(event) }
   }
 

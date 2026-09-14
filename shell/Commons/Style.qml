@@ -8,13 +8,11 @@ import Quickshell.Io
 // rounding, gap to screen edges, state affordances, spacing, typography
 // scale, and bar dimensions.
 //
-// `cornerRadius` mirrors Hyprland's `decoration:rounding`. `gapsOut` is
-// half of Hyprland's `general:gaps_out` — Hyprland's value works well as
+// `cornerRadius` mirrors the compositor's decoration rounding. `gapsOut` is
+// half of its outer window gap — the full value works well as
 // a window-to-window gap but feels too cavernous when used as the
 // distance from a panel/notification to the screen edge, so the shell
-// halves it. Themes and user Hyprland config own those values; the
-// shell picks them up by re-running `hyprctl getoption` on startup and
-// after theme IPC applies a theme.
+// halves it. The compositor facade owns those values and feeds them here.
 //
 // Typography, spacing, and bar size come from theme/shell.toml.
 // `[font] base-size` is the rem root; every `Style.font.<token>` derives
@@ -348,8 +346,13 @@ QtObject {
   }
 
   function refresh() {
-    hyprctlProc.running = true
-    gapsOutProc.running = true
+  }
+
+  function applyCompositorMetrics(rounding, outerGap) {
+    var nextRounding = Number(rounding)
+    var nextGap = Number(outerGap)
+    if (isFinite(nextRounding) && nextRounding >= 0) cornerRadius = Math.round(nextRounding)
+    if (isFinite(nextGap) && nextGap >= 0) gapsOut = Math.round(nextGap)
   }
 
   function scheduleRefresh() {
@@ -362,7 +365,7 @@ QtObject {
       var n = Number(json.int)
       if (isFinite(n) && n >= 0) cornerRadius = n
     } catch (e) {
-      // hyprctl missing / Hyprland not running — leave the previous value.
+      // Invalid backend data leaves the previous value.
     }
   }
 
@@ -374,7 +377,7 @@ QtObject {
       var n = parts.length > 0 ? Number(parts[0]) : Number(json.int)
       if (isFinite(n) && n >= 0) gapsOut = Math.max(0, Math.round(n / 2))
     } catch (e) {
-      // hyprctl missing / Hyprland not running — leave the previous value.
+      // Invalid backend data leaves the previous value.
     }
   }
 
@@ -439,24 +442,6 @@ QtObject {
     styleOverrides = styleOut
   }
 
-  property Process hyprctlProc: Process {
-    id: hyprctlProc
-    command: ["hyprctl", "-j", "getoption", "decoration:rounding"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.applyRoundingJson(text)
-    }
-  }
-
-  property Process gapsOutProc: Process {
-    id: gapsOutProc
-    command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.applyGapsOutJson(text)
-    }
-  }
-
   // Resolve the fontconfig alias to a concrete family name. `omarchy font
   // set <name>` rewrites ~/.config/fontconfig/fonts.conf and restarts the
   // shell, but rerun on file change anyway so manual edits propagate too.
@@ -485,10 +470,7 @@ QtObject {
     onLoadFailed: root.resolveFontFamily()
   }
 
-  // Re-poll Hyprland a beat after either input file changes. Hyprland's
-  // auto-reload runs asynchronously when its sourced .lua files change,
-  // so racing it with an immediate hyprctl gives the old value. 200ms is
-  // generous enough for Hyprland to settle without being user-visible.
+  // Coalesce updates from theme/config file changes.
   property Timer refreshTimer: Timer {
     id: refreshTimer
     interval: 200
@@ -496,11 +478,9 @@ QtObject {
     onTriggered: root.refresh()
   }
 
-  // `omarchy toggle window-gaps` creates/removes this flag file. Hyprland
-  // reloads its config when sourced files change, then hyprctl reflects
-  // the new effective value.
+  // A declarative override can nudge a delayed style refresh.
   property FileView windowNoGapsToggle: FileView {
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/toggles/hypr/window-no-gaps.lua"
+    path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/itterum-shell/window-no-gaps"
     watchChanges: true
     printErrors: false
     onFileChanged: refreshTimer.restart()
@@ -509,7 +489,6 @@ QtObject {
   }
 
   Component.onCompleted: {
-    refresh()
     resolveFontFamily()
   }
 }

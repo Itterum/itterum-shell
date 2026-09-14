@@ -7,6 +7,7 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 tests=(
   "$ROOT/test/shell.d/package-test.sh"
   "$ROOT/test/shell.d/product-scope-test.sh"
+  "$ROOT/test/shell.d/compositor-boundary-test.sh"
   "$ROOT/test/shell.d/audio-test.sh"
   "$ROOT/test/shell.d/battery-test.sh"
   "$ROOT/test/shell.d/idle-test.sh"
@@ -33,5 +34,7 @@ for test in "${tests[@]}"; do
   printf '==> %s\n' "${test#$ROOT/}"
   bash "$test"
 done
+
+node --test "$ROOT/test/js/hyprland-mapping.test.mjs"
 
 printf '\nAll %d Itterum Shell test files passed.\n' "${#tests[@]}"

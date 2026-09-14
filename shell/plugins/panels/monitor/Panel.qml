@@ -300,8 +300,8 @@ Panel {
     if (!name) return
     if (enabled && root.enabledDisplayCount <= 1) return
 
-    actionProc.command = ["hyprctl", "keyword", "monitor", name + (enabled ? ",disable" : ",preferred,auto,auto")]
-    if (!actionProc.running) actionProc.running = true
+    if (root.bar && root.bar.compositor)
+      root.bar.compositor.setOutputEnabled(name, !enabled)
   }
 
   function setScale(scale) {

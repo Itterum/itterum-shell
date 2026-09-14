@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -26,8 +25,8 @@ Item {
   // Injected by the host shell. Used for shell-wide actions such as opening
   // settings and persisting inline widget state.
   property var shell: null
-  // Shared facade to backend services for widgets during migration.
-  property var backend: null
+  // Stable compositor facade; compositor-specific APIs stay behind it.
+  property var compositor: null
   // Manifest for the active bar option. Present for custom bars and useful for
   // diagnostics; the built-in bar does not otherwise need it.
   property var manifest: null
@@ -712,12 +711,11 @@ Item {
     return window && window.screen ? String(window.screen.name || "") : ""
   }
 
-  // The output Hyprland has focused, which is where a keyboard-summoned panel
-  // belongs. Empty until Hyprland reports one, which leaves panel routing on
+  // The output the compositor has focused, which is where a keyboard-summoned
+  // panel belongs. Empty until the backend reports one, leaving panel routing on
   // its per-monitor fallback rather than guessing at an output.
   function focusedScreenName() {
-    var monitor = Hyprland.focusedMonitor
-    return monitor ? String(monitor.name || "") : ""
+    return root.compositor ? String(root.compositor.focusedOutputId || "") : ""
   }
 
   // Resolve the live bar-widget instance for a plugin id (e.g. "omarchy.bluetooth").
@@ -2004,7 +2002,7 @@ Item {
       var barValue = firstParty
         ? root : root.pluginBarApiFor(pluginApiId, moduleName, registered)
       if ("bar" in target) target.bar = barValue
-      if ("backend" in target) target.backend = root.backend
+      if ("compositor" in target) target.compositor = root.compositor
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
     }
