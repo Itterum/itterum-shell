@@ -6,6 +6,27 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 
 tests=(
   "$ROOT/test/shell.d/package-test.sh"
+  "$ROOT/test/shell.d/product-scope-test.sh"
+  "$ROOT/test/shell.d/audio-test.sh"
+  "$ROOT/test/shell.d/battery-test.sh"
+  "$ROOT/test/shell.d/idle-test.sh"
+  "$ROOT/test/shell.d/keyboard-layout-test.sh"
+  "$ROOT/test/shell.d/lock-blank-fingerprint-test.sh"
+  "$ROOT/test/shell.d/lock-fingerprint-indicator-test.sh"
+  "$ROOT/test/shell.d/lock-password-overflow-test.sh"
+  "$ROOT/test/shell.d/lock-stranded-recovery-test.sh"
+  "$ROOT/test/shell.d/menu-images-test.sh"
+  "$ROOT/test/shell.d/menu-plugin-test.sh"
+  "$ROOT/test/shell.d/monitor-modeless-test.sh"
+  "$ROOT/test/shell.d/monitor-output-name-test.sh"
+  "$ROOT/test/shell.d/monitor-scaling-test.sh"
+  "$ROOT/test/shell.d/monitor-test.sh"
+  "$ROOT/test/shell.d/notifications-test.sh"
+  "$ROOT/test/shell.d/osd-test.sh"
+  "$ROOT/test/shell.d/plugin-registry-contract-test.sh"
+  "$ROOT/test/shell.d/plugin-validate-test.sh"
+  "$ROOT/test/shell.d/tray-menu-test.sh"
+  "$ROOT/test/shell.d/tray-test.sh"
 )
 
 for test in "${tests[@]}"; do

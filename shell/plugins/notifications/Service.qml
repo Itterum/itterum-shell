@@ -17,7 +17,7 @@ Item {
   // Injected by omarchy-shell (the first-party service loader).
   property var shell: null
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string omarchyPath: ""
   readonly property string home: Quickshell.env("HOME")
   // History + DND live under XDG_STATE_HOME: they're persistent user state
   // (the notifications received, the last-set DND preference), not
@@ -418,7 +418,7 @@ Item {
   // ---------------------------------------------------- popup persistence
   //
   // Mirror every on-screen popup to its own file under popupStateDir so
-  // toasts survive shell restarts (notably the restart `omarchy-update`
+  // toasts survive shell restarts
   // performs). Writes, moves and deletes go through one serialized queue: a
   // burst of replaces_id updates must not race a single reused Process, and
   // ordering guarantees a delete issued after a write wins.

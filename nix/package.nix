@@ -13,8 +13,11 @@ stdenvNoCC.mkDerivation {
     install -d "$out/bin" "$out/libexec/itterum-shell" \
       "$out/share/itterum-shell/config"
     cp -R shell "$out/share/itterum-shell/shell"
-    install -Dm644 config/omarchy/shell.json \
+    find "$out/share/itterum-shell/shell" -name README.md -delete
+    install -Dm644 config/itterum-shell/shell.json \
       "$out/share/itterum-shell/config/shell.json"
+    install -Dm644 config/itterum-shell/menu.jsonc \
+      "$out/share/itterum-shell/config/menu.jsonc"
 
     substitute bin/itterum-shell "$out/libexec/itterum-shell/itterum-shell" \
       --replace-fail '@quickshell@' '${quickshell}' \

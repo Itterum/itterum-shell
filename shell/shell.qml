@@ -23,14 +23,15 @@ ShellRoot {
 
   property string home: Quickshell.env("HOME")
 
-  // The omarchy-shell host is the long-running entry point. Plugins live in
-  // sibling directories under plugins/. OMARCHY_PATH is provided by the uwsm
-  // session environment and is the single source of truth for this checkout.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
-  readonly property string shellPath: omarchyPath + "/shell"
+  // Packaged resources are immutable. Home Manager may provide a complete
+  // user override below the Itterum XDG namespace.
+  property string resourcePath: Quickshell.env("ITTERUM_SHELL_PATH")
+  readonly property string omarchyPath: resourcePath
+  property string xdgConfigHome: Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")
+  readonly property string shellPath: resourcePath + "/shell"
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
-  readonly property string defaultsPath: omarchyPath + "/config/omarchy/shell.json"
-  readonly property string userConfigPath: home + "/.config/omarchy/shell.json"
+  readonly property string defaultsPath: resourcePath + "/config/shell.json"
+  readonly property string userConfigPath: xdgConfigHome + "/itterum-shell/shell.json"
 
   // Bundled fallback so the shell can start even when the default shell.json is
   // missing or unreadable. The bar config here mirrors the on-disk defaults
@@ -144,8 +145,8 @@ ShellRoot {
   }
 
   Component.onCompleted: {
-    console.log("omarchy-shell paths",
-      "omarchyPath=" + shell.omarchyPath,
+    console.log("itterum-shell paths",
+      "resourcePath=" + shell.resourcePath,
       "shellDir=" + Quickshell.shellDir,
       "firstPartyPluginsDir=" + shell.firstPartyPluginsDir,
       "defaultsPath=" + shell.defaultsPath,
