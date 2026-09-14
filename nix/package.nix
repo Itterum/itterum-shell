@@ -18,6 +18,8 @@ stdenvNoCC.mkDerivation {
       "$out/share/itterum-shell/config/shell.json"
     install -Dm644 config/itterum-shell/menu.jsonc \
       "$out/share/itterum-shell/config/menu.jsonc"
+    install -Dm644 config/itterum-shell/arc-dock.json \
+      "$out/share/itterum-shell/config/arc-dock.json"
 
     substitute bin/itterum-shell "$out/libexec/itterum-shell/itterum-shell" \
       --replace-fail '@quickshell@' '${quickshell}' \

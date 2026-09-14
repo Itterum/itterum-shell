@@ -54,6 +54,28 @@ function activeWindow(window) {
   }
 }
 
+function windows(clients) {
+  var values = Array.isArray(clients) ? clients : []
+  return values.map(function(window) {
+    var at = Array.isArray(window && window.at) ? window.at : [0, 0]
+    var size = Array.isArray(window && window.size) ? window.size : [0, 0]
+    return {
+      id: String((window && window.address) || ""),
+      address: String((window && window.address) || ""),
+      appId: String((window && (window.class || window.initialClass)) || ""),
+      title: String((window && window.title) || ""),
+      outputId: String((window && window.monitor) || ""),
+      workspaceId: Number(window && window.workspace && window.workspace.id),
+      x: Number(at[0] || 0),
+      y: Number(at[1] || 0),
+      width: Number(size[0] || 0),
+      height: Number(size[1] || 0),
+      fullscreen: Number((window && window.fullscreen) || 0) > 0,
+      hidden: !!(window && window.hidden)
+    }
+  }).filter(function(window) { return window.id !== "" })
+}
+
 function keyboard(devices, preferredId) {
   var keyboards = devices && Array.isArray(devices.keyboards) ? devices.keyboards : []
   if (keyboards.length === 0) return null
@@ -82,6 +104,7 @@ if (typeof module !== "undefined") {
     outputs: outputs,
     workspaces: workspaces,
     activeWindow: activeWindow,
+    windows: windows,
     keyboard: keyboard
   }
 }

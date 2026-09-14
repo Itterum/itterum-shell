@@ -16,7 +16,6 @@
 // existir — não é algo que se invoca sob demanda como um panel/overlay.
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import Quickshell.Wayland
@@ -31,6 +30,7 @@ Item {
   // quando um app novo é instalado, então o dock não precisa de índice próprio.
   property var shell: null
   readonly property var appLibrary: root.shell ? root.shell.appLibrary : null
+  readonly property var compositor: root.shell ? root.shell.compositor : null
 
   // Id do plugin, para o dock pedir ao host que abra a *sua* janela de ajustes.
   // Vem do manifesto injetado, e não escrito aqui: `omarchy plugin clone` gera
@@ -61,9 +61,7 @@ Item {
   // espaço, e é ele que converte deslocamento do ponteiro em posições andadas.
   readonly property int slotStep: slotSize + slotGap
 
-  // Único arredondamento do dock: o da casca. Espelha o `decoration:rounding`
-  // do Hyprland, então o dock curva junto com as janelas do tema. Slots e botão
-  // não têm casca própria, logo não têm raio próprio.
+  // Único arredondamento do dock: o da casca, vindo do tema compartilhado.
   readonly property int dockRadius: Style.cornerRadius
 
   // Alcance da penumbra, a partir da borda da casca. Sai do arredondamento
@@ -478,190 +476,38 @@ Item {
     return best
   }
 
-  // ------------------------------------------------------------ vidro fosco
-  //
-  // Translucidez sozinha não é vidro: sem alguém desfocando o que está atrás,
-  // o dock só deixaria ver as janelas de trás nítidas através dele. Quem faz o
-  // fosco é o compositor, por uma `layerrule` de blur — e ela é pedida daqui, e
-  // não deixada a cargo do usuário, porque um ajuste que só funciona depois de
-  // editar o `looknfeel.lua` à mão não é um ajuste, é uma dica.
-  //
-  // A regra é declarada com *nome*: no parser Lua do Hyprland, redeclarar o
-  // mesmo nome substitui a regra anterior em vez de empilhar mais uma, e é isso
-  // que deixa o ajuste ser desligado (`enabled = false`) sem precisar de um
-  // `hyprctl reload` — que levaria junto tudo o mais que o usuário tenha
-  // ajustado em tempo de execução.
-  readonly property string glassRuleName: root.layerNamespace + "-glass"
-
-  // Piso de alfa que o blur ignora. A janela é maior que a casca — leva a folga
-  // até a borda, que é para onde o dock desliza ao esconder —, e sem este piso
-  // o compositor desfocaria a área transparente junto: um bloco fosco
-  // retangular em volta de um dock de cantos redondos.
-  //
-  // O valor sai da menor opacidade que o ajuste permite, pela metade: fica
-  // acima de zero, então a folga não entra, e abaixo de qualquer alfa que a
-  // casca chegue a ter, então a casca sempre entra.
-  readonly property real glassIgnoreAlpha: config.limits.glassOpacity[0] / 100 / 2
-
-  // O pedido que põe o compositor no estado do ajuste, no protocolo do socket
-  // do Hyprland (ver ArcHyprland). Vazio quer dizer "não há nada a pedir"
-  // (ver o caminho legado abaixo).
-  //
-  // Sem `blur_popups`: o menu de contexto é uma popup desta mesma janela, mas
-  // é opaco de propósito (ver `surfaceColor` no ArcMenu), e desfocar o que
-  // passa atrás de uma superfície sólida é trabalho que não aparece.
-  readonly property string glassCommand: {
-    // Ancorado nas duas pontas: o compositor casa a expressão inteira, então
-    // sem elas a regra pegaria também a janela de ajustes (`arc-dock-settings`)
-    // — que é um cartão de texto, e o texto não se lê sobre um borrão.
-    var namespace = "^(" + root.layerNamespace + ")$"
-    if (Hyprland.usingLua) {
-      return 'eval hl.layer_rule({ name = "' + root.glassRuleName + '"'
-        + ', match = { namespace = "' + namespace + '" }'
-        + ', blur = true'
-        + ', ignore_alpha = ' + root.glassIgnoreAlpha
-        + ', enabled = ' + (config.glass ? "true" : "false") + ' })'
-    }
-    // Config legada (`.conf`): as regras não têm nome, então não há como
-    // desfazer uma — só um `hyprctl reload`, que é caro demais para um
-    // interruptor. Não precisa: o blur só se vê através de uma casca
-    // translúcida, e desligar o vidro devolve a casca ao tom cheio do tema.
-    // A regra que sobra deixa de ter o que desfocar.
-    if (!config.glass) return ""
-    return "[[BATCH]]keyword layerrule blur," + namespace
-      + " ; keyword layerrule ignorealpha " + root.glassIgnoreAlpha + "," + namespace
-  }
-
-  // Um pedido novo enquanto o anterior ainda está no ar não pode ser perdido:
-  // dois cliques seguidos no interruptor deixariam o compositor parado no
-  // estado do primeiro. Ele fica marcado e sai quando o anterior termina — e
-  // como o comando é lido do ajuste de agora, o que sai é sempre o estado
-  // atual, não a fila de gestos.
-  property bool glassPending: false
-
-  function applyGlass() {
-    if (root.glassCommand === "") return
-    if (glassIpc.busy) {
-      root.glassPending = true
-      return
-    }
-    root.glassPending = false
-    glassIpc.send(root.glassCommand)
-  }
-
-  onGlassCommandChanged: root.applyGlass()
-
-  ArcHyprland {
-    id: glassIpc
-    // O compositor responde `ok` a cada comando que aceitou; qualquer outra
-    // coisa é a explicação do que ele recusou, e vale mais no log do que
-    // perdida.
-    onReplied: function (reply) {
-      if (!/^(ok\s*)*$/.test(reply)) {
-        console.warn("arcdock: compositor refused the glass rule -", reply.trim())
-      }
-      if (root.glassPending) root.applyGlass()
-    }
-    onFailed: if (root.glassPending) root.applyGlass()
-  }
-
-  // O blur é do compositor, e ele pode estar desligado inteiro
-  // (`decoration:blur:enabled`). Aí a regra é aceita e não faz nada: a casca
-  // fica translúcida e nítida, sem nenhuma pista do porquê. A janela de ajustes
-  // lê isto para dizer o que falta em vez de deixar o usuário no escuro.
-  //
-  // O padrão é `true` — enquanto a sondagem não respondeu não há o que avisar,
-  // e acusar um blur desligado que talvez esteja ligado é pior que calar.
+  // Blur is declared by the compositor configuration. The plugin only controls
+  // its own opacity, so it stays portable to the future Niri backend.
   property bool compositorBlur: true
 
-  function probeCompositorBlur() {
-    blurProbe.send("j/getoption decoration:blur:enabled")
+  // Window geometry and workspace state come from the compositor facade. This
+  // is the only contract the dock will need when a Niri backend is added.
+  readonly property var dockMonitor: {
+    var outputs = root.compositor ? root.compositor.outputs : []
+    var wanted = root.dockScreen ? String(root.dockScreen.name || "") : ""
+    for (var i = 0; i < outputs.length; i++) if (outputs[i].id === wanted) return outputs[i]
+    return null
   }
-
-  ArcHyprland {
-    id: blurProbe
-    onReplied: function (reply) {
-      try {
-        root.compositorBlur = !!JSON.parse(reply).bool
-      } catch (error) {
-        root.compositorBlur = true
-      }
+  readonly property int dockWorkspaceId: {
+    var workspaces = root.compositor ? root.compositor.workspaces : []
+    for (var i = 0; i < workspaces.length; i++) {
+      if (workspaces[i].outputId === String(root.dockMonitor && root.dockMonitor.id)
+          && workspaces[i].focused) return Number(workspaces[i].id || 0)
     }
+    return root.compositor ? Number(root.compositor.focusedWorkspaceId || 0) : 0
   }
-
-  // ------------------------------------------------------- sair quando estorva
-  //
-  // O dock flutua por cima das janelas. Isso é o que se quer enquanto sobra
-  // área embaixo, e é exatamente o que atrapalha quando um app tomou a tela
-  // inteira — aí ele sai de cena e só volta quando o ponteiro o chama de volta.
-  //
-  // A verdade vem do workspace ativo da tela do dock, e não da janela em foco:
-  // o foco pode estar num diálogo flutuante por cima do app que tomou a tela, e
-  // olhando só para o foco o dock continuaria plantado por cima do app.
-  // O monitor do Hyprland que corresponde à tela do dock. A escolha é feita por
-  // função, e não por binding: `monitorFor` registra a saída no próprio modelo
-  // de monitores quando ela ainda não estava lá, então um binding que lesse
-  // `Hyprland.monitors` para se manter atualizado se realimentaria — era esse o
-  // laço de binding que o Qt acusava e cortava, deixando a escolha pela metade.
-  property var dockMonitor: null
-
-  // Reatribuir o mesmo monitor não emite mudança, então o giro que o próprio
-  // `monitorFor` provoca ao registrar a saída morre aqui em vez de virar laço.
-  function refreshDockMonitor() {
-    root.dockMonitor = root.dockScreen ? Hyprland.monitorFor(root.dockScreen) : null
-  }
-
-  // Dois caminhos levam a uma escolha nova: a tela vencedora trocar (monitor
-  // desconectado, cabo reordenado) e a saída sumir e voltar sem a tela mudar de
-  // identidade — o segundo não mexe em `dockScreen`, por isso os dois estão aqui.
-  onDockScreenChanged: root.refreshDockMonitor()
-
-  Connections {
-    target: Hyprland.monitors
-    function onValuesChanged() { root.refreshDockMonitor() }
-  }
-
-  readonly property var dockWorkspace: root.dockMonitor ? root.dockMonitor.activeWorkspace : null
-
-  // `hasFullscreen` é verdadeiro nos dois modos de tela cheia do Hyprland —
-  // maximizado (`fullscreen 1`) e tela cheia (`fullscreen 2`) —, que é
-  // exatamente o conjunto de casos em que o dock estorva.
-  readonly property bool screenFilled: !!root.dockWorkspace && root.dockWorkspace.hasFullscreen
-
-  // O Quickshell reconsulta os workspaces nos eventos de janela e de workspace,
-  // mas `fullscreen` não está nessa lista: sem este empurrão `hasFullscreen`
-  // ficaria congelado no valor da última consulta e o dock nunca se esconderia.
-  // Fechar a janela que estava em tela cheia também emite `fullscreen`, então
-  // este é o único evento que precisa ser escutado.
-  Connections {
-    target: Hyprland
-    function onRawEvent(event) {
-      if (!event) return
-      // A consulta da geometria das janelas é assunto à parte do resto daqui, e
-      // por isso não entra na cadeia abaixo: o mesmo `fullscreen` que reconsulta
-      // os workspaces também reacomoda a tela.
-      if (root.coveredMode && root.coverageEvents.indexOf(event.name) >= 0) coverageTimer.restart()
-      if (event.name === "fullscreen") Hyprland.refreshWorkspaces()
-      // Um `hyprctl reload` devolve o compositor ao que está em disco, e a
-      // regra do vidro é nossa, de tempo de execução — ela some junto. O
-      // `omarchy theme set` faz esse reload no fim, então sem repor a regra
-      // aqui o dock perderia o fosco na primeira troca de tema. É também
-      // quando o blur pode ter sido ligado ou desligado à mão, e por isso a
-      // sondagem vem junto.
-      else if (event.name === "configreloaded") {
-        root.applyGlass()
-        root.probeCompositorBlur()
-      }
+  readonly property var dockWindows: {
+    var values = root.compositor ? root.compositor.windows : []
+    var result = []
+    for (var i = 0; i < values.length; i++) {
+      if (Number(values[i].workspaceId) === root.dockWorkspaceId) result.push(values[i])
     }
+    return result
   }
-
-  // ---------------------------------------------- janela por baixo do dock
-  //
-  // `hasFullscreen` responde "um app tomou a tela sozinho", que num WM de
-  // tiling é só metade da pergunta: dois apps lado a lado ocupam a mesma área e
-  // nenhum dos dois está em tela cheia. Quem responde pelos dois é a
-  // geometria — o dock estorva quando *qualquer* janela alcança o retângulo em
-  // que ele se assenta.
+  readonly property bool screenFilled: {
+    for (var i = 0; i < root.dockWindows.length; i++) if (root.dockWindows[i].fullscreen) return true
+    return false
+  }
   readonly property bool coveredMode: root.autoHide === "covered"
 
   // Onde o dock se assenta, nas coordenadas do layout do Hyprland — as mesmas
@@ -715,20 +561,15 @@ Item {
   // cima das janelas que cobrem o dock.
   function computeCovered() {
     var rect = root.dockRect
-    var workspace = root.dockWorkspace
-    if (!root.coveredMode || !rect || !workspace || !workspace.toplevels) return false
-    var windows = workspace.toplevels.values
+    if (!root.coveredMode || !rect) return false
+    var windows = root.dockWindows
     for (var i = 0; i < windows.length; i++) {
-      var data = windows[i] ? windows[i].lastIpcObject : null
-      if (!data || !data.at || !data.size) continue
-      // Janela agrupada atrás de outra aba está no workspace sem estar em cena.
-      // Ela ocupa o mesmo retângulo da que aparece, então contá-la não mudaria
-      // nada agora — mas mudaria depois que a de cima saísse do workspace.
-      if (data.hidden) continue
-      var wx = Number(data.at[0])
-      var wy = Number(data.at[1])
-      var ww = Number(data.size[0])
-      var wh = Number(data.size[1])
+      var data = windows[i]
+      if (!data || data.hidden) continue
+      var wx = Number(data.x)
+      var wy = Number(data.y)
+      var ww = Number(data.width)
+      var wh = Number(data.height)
       if (!(ww > 0) || !(wh > 0)) continue
       if (wx < rect.x + rect.width && wx + ww > rect.x
         && wy < rect.y + rect.height && wy + wh > rect.y) return true
@@ -738,6 +579,7 @@ Item {
 
   // Mudou a área do dock (borda, folga, um slot a mais), mudou a conta.
   onDockRectChanged: Qt.callLater(root.recomputeCovered)
+  onDockWindowsChanged: Qt.callLater(root.recomputeCovered)
 
   onCoveredModeChanged: {
     if (root.coveredMode) coverageTimer.restart()
@@ -746,46 +588,23 @@ Item {
     else root.screenCovered = false
   }
 
-  // Um observador por janela do workspace. O modelo não muda quando só a
-  // geometria mudou — abrir uma janela reacomoda as vizinhas sem ninguém entrar
-  // ou sair da lista —, então quem avisa que a consulta voltou é o mapa de cada
-  // toplevel. O `callLater` junta o pente de avisos de uma consulta só numa
-  // conta em vez de uma por janela.
-  Instantiator {
-    model: root.coveredMode && root.dockWorkspace ? root.dockWorkspace.toplevels : null
-    onObjectAdded: function (index, object) { Qt.callLater(root.recomputeCovered) }
-    onObjectRemoved: function (index, object) { Qt.callLater(root.recomputeCovered) }
-
-    delegate: QtObject {
-      required property var modelData
-      readonly property var geometry: modelData ? modelData.lastIpcObject : null
-      onGeometryChanged: Qt.callLater(root.recomputeCovered)
-    }
-  }
-
-  // Os eventos que reacomodam a tela, e por isso pedem consulta nova: abrir e
-  // fechar refluem o tiling, mover e (des)flutuar trocam a área da janela,
-  // agrupar tira uma de cena, e trocar de workspace ou de monitor troca o
-  // conjunto inteiro.
-  //
-  // A troca de foco fica de fora, por mais tentador que fosse usá-la para pegar
-  // o que os outros não pegam: o Hyprland emite `activewindow` junto com cada
-  // troca de *título*, e um terminal com relógio no título pediria uma consulta
-  // por segundo, para sempre. Foi medido, não suposto.
   readonly property var coverageEvents: ["openwindow", "closewindow", "movewindow",
     "movewindowv2", "changefloatingmode", "fullscreen", "workspace", "workspacev2",
     "focusedmon", "focusedmonv2", "activespecial", "activespecialv2",
     "togglegroup", "moveintogroup", "moveoutofgroup", "pin", "monitoradded",
     "monitorremoved", "configreloaded"]
 
-  // A consulta é uma ida e volta ao compositor, e um gesto só emite vários
-  // eventos (mandar uma janela para outro workspace emite `movewindow` e
-  // `workspace`, e o alt-tab da shell emite dois `fullscreen` seguidos). O
-  // timer junta a rajada numa consulta só.
   Timer {
     id: coverageTimer
     interval: 60
-    onTriggered: Hyprland.refreshToplevels()
+    onTriggered: if (root.compositor) root.compositor.refresh()
+  }
+
+  Connections {
+    target: root.compositor
+    function onRawEvent(event) {
+      if (event && root.coverageEvents.indexOf(event.name) >= 0) coverageTimer.restart()
+    }
   }
 
   // Quando o dock *estorva*, que é a pergunta que o auto-hide responde. São
@@ -961,77 +780,6 @@ Item {
     return id.length > 0 ? id : "unknown"
   }
 
-  // Forma que o Chromium (e forks: Vivaldi, Brave, Edge...) grava no appId de
-  // uma janela --app=: host, "_" e o path com as barras trocadas por "_" —
-  // "https://read.amazon.com/kindle-library" vira
-  // "read.amazon.com__kindle-library". O "_" que sobra no fim é a barra final,
-  // que a URL da Exec= pode ter ou não; sai dos dois lados pra comparação bater.
-  function webAppKey(host, path) {
-    var h = String(host || "").toLowerCase().replace(/:\d+$/, "")
-    var p = String(path || "/").toLowerCase().replace(/\//g, "_")
-    return (h + "_" + p).replace(/_+$/, "")
-  }
-
-  // { host, key } embutidos no appId: "vivaldi-web.whatsapp.com__-Default" dá
-  // host "web.whatsapp.com" e chave "web.whatsapp.com". Sem instalação de PWA
-  // por trás, esse appId não bate com nenhum id de entrada .desktop nem
-  // StartupWMClass, e o heuristicLookup do Quickshell não sabe procurar por ele.
-  function webAppFromId(id) {
-    // O path fica depois do "__", então a captura tem que ser gulosa até o
-    // sufixo de perfil final — um path com hífen (ex.: "kindle-library")
-    // quebraria uma captura preguiçosa ao parar no primeiro "-" que encontrasse.
-    var m = String(id || "").toLowerCase().match(
-      /^(?:google-chrome(?:-stable)?|chrome|chromium|brave|microsoft-edge|msedge|edge|opera|vivaldi|helium(?:-browser)?)-(.+)-(?:default|profile.*)$/
-    )
-    if (!m) return null
-    var key = m[1].replace(/_+$/, "")
-    return { host: key.split("__")[0].replace(/_+$/, ""), key: key }
-  }
-
-  // A parte do host que nomeia o site: "web.whatsapp.com" -> "whatsapp",
-  // "mail.google.com.br" -> "google". Sai o TLD (e o "com" de um "com.br"),
-  // e fica o rótulo de antes dele. Vazio se a chave não é de web app.
-  function webAppSite(key) {
-    var web = root.webAppFromId(key)
-    if (!web) return ""
-    var host = web.host.split(".")
-    while (host.length > 1 && host[host.length - 1].length <= 3) host.pop()
-    return host[host.length - 1] || ""
-  }
-
-  // { host, key } da URL que a Exec= de um web app do Omarchy passa ao
-  // omarchy-launch-webapp, na mesma forma do appId pra comparar por igualdade.
-  function webAppFromExec(exec) {
-    var m = String(exec || "").match(/omarchy-launch-webapp\s+["']?(https?:\/\/[^\s"']+)/i)
-    if (!m) return null
-    var u = m[1].match(/^https?:\/\/([^\/?#]+)([^?#]*)/i)
-    if (!u) return null
-    var host = u[1].toLowerCase().replace(/:\d+$/, "")
-    return { host: host, key: root.webAppKey(host, u[2]) }
-  }
-
-  // Entrada .desktop de um app --app=: os web apps do Omarchy (omarchy-launch-
-  // webapp/omarchy-webapp-install) são instalados sem StartupWMClass, então a
-  // única pista que sobrevive até aqui é a URL na Exec= batendo com o appId.
-  // A comparação é por igualdade, não por substring: "youtube.com" dentro de
-  // "music.youtube.com" mandaria o YouTube pro slot do YouTube Music. Host e
-  // path iguais ganham; só o host igual serve de reserva, pro caso de a janela
-  // ter sido aberta por outra URL do mesmo site.
-  function webAppEntry(id) {
-    var want = root.webAppFromId(id)
-    if (!want || want.host.length < 4) return null
-    var apps = (DesktopEntries.applications && DesktopEntries.applications.values) || []
-    var byHost = null
-    for (var i = 0; i < apps.length; i++) {
-      var app = apps[i]
-      var have = root.webAppFromExec(app && app.execString)
-      if (!have) continue
-      if (have.key === want.key) return app
-      if (!byHost && have.host === want.host) byHost = app
-    }
-    return byHost
-  }
-
   // Entrada .desktop do app. O appId do toplevel é o que mais se aproxima do
   // id da entrada, e o heuristicLookup do Quickshell já cobre as variações
   // comuns (caixa, sufixos, StartupWMClass) que uma busca por id exato erra.
@@ -1049,8 +797,6 @@ Item {
     } else if (id.length > 0) {
       var byAppId = DesktopEntries.heuristicLookup(id)
       if (byAppId) return byAppId
-      var byWebApp = root.webAppEntry(id)
-      if (byWebApp) return byWebApp
     }
     // Janelas sem appId caem na chave derivada do título; ainda vale tentar.
     if (String(key || "").indexOf("title:") !== 0) {
@@ -1067,46 +813,10 @@ Item {
     return entry && entry.icon ? String(entry.icon) : ""
   }
 
-  // Nome do ícone do slot. Para um web app o pacote de ícones vem antes da
-  // entrada .desktop: o que a entrada declara é o favicon que o
-  // omarchy-webapp-install baixou (ou um PNG do hicolor, como o
-  // "omarchy-discord"), e o pacote costuma ter o desenho do site no estilo
-  // dos outros ícones — pelo nome do site ("whatsapp", "youtube"). A busca é a
-  // temática do Qt, que falha quando o pacote não tem o nome (ver
-  // `launcherIconSource`); aí vale o da entrada, e sem entrada, a inicial.
-  // Um PWA instalado pelo próprio browser ("Instalar app") não carrega o host
-  // no appId — é "brave-<id da extensão>-Default" — mas a entrada que o
-  // browser escreve tem o `Name=` do site ("GitHub"), e é por ele que o
-  // pacote é consultado. Só para essas entradas: para um app nativo a entrada
-  // continua mandando, porque é pelo `Icon=` dela que o pacote já sabe qual
-  // ícone é o dele, e "Files" pelo nome acharia qualquer coisa.
-  //
-  // Devolve { name, rounded }: `rounded` é o web app que ficou com o ícone da
-  // própria entrada — o favicon quadrado — e por isso ganha o canto de
-  // `webAppIconRadius`. O que veio do pacote já tem o canto do pacote.
+  // Native desktop entries provide the icon; browser-created application
+  // heuristics are deliberately outside the product scope.
   function slotIcon(key, entry) {
-    var names = []
-    var site = root.webAppSite(key)
-    if (site.length > 0) names.push(site)
-    var browserApp = root.isBrowserApp(entry)
-    if (browserApp) {
-      var byName = String(entry.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-      // O site e o app de desktop dele dividem a marca ("github-desktop" é o
-      // Octocat), e é o segundo que os pacotes costumam ter.
-      if (byName.length > 0) names.push(byName, byName + "-desktop")
-    }
-    for (var i = 0; i < names.length; i++) {
-      if (String(Quickshell.iconPath(names[i], true)).length > 0) return { name: names[i], rounded: false }
-    }
-    return { name: root.appIconName(entry), rounded: site.length > 0 || browserApp }
-  }
-
-  // Entrada escrita por um browser Chromium ao instalar um PWA: a Exec= abre o
-  // browser com `--app-id=` e a classe de startup é a "crx_<id>" do Chromium.
-  function isBrowserApp(entry) {
-    if (!entry) return false
-    if (String(entry.startupClass || "").indexOf("crx_") === 0) return true
-    return String(entry.execString || "").indexOf("--app-id=") >= 0
+    return { name: root.appIconName(entry), rounded: false }
   }
 
   // Nome do ícone -> caminho do arquivo. Sem appLibrary (plugin carregado fora
@@ -1144,10 +854,6 @@ Item {
 
   // Nome exibível derivado da chave: "org.kde.dolphin" -> "Dolphin".
   function appLabel(key) {
-    // Um web app sem entrada .desktop ganha o nome do site: de
-    // "brave-web.whatsapp.com__-default" a regra do ponto tiraria "Com".
-    var site = root.webAppSite(key)
-    if (site.length > 0) return site.charAt(0).toUpperCase() + site.slice(1)
     var parts = String(key || "").split(".")
     var last = parts[parts.length - 1] || key || ""
     if (last.length === 0) return ""
@@ -1270,7 +976,17 @@ Item {
   // as janelas — é ela que reconhece o app quando ele abre e evita um segundo
   // slot — e `entry` é o id da entrada .desktop, que é o que desenha o ícone e
   // abre o app enquanto não há janela nenhuma.
-  property var pinned: []
+  property var pinned: [
+    { key: "foot", entry: "foot" },
+    { key: "org.gnome.nautilus", entry: "org.gnome.Nautilus" },
+    { key: "dev.zed.zed", entry: "dev.zed.Zed" },
+    { key: "chatgpt", entry: "chatgpt" },
+    { key: "obsidian", entry: "obsidian" },
+    { key: "com.brave.browser", entry: "com.brave.Browser" },
+    { key: "com.google.chrome", entry: "com.google.Chrome" },
+    { key: "org.telegram.desktop", entry: "org.telegram.desktop" },
+    { key: "bruno", entry: "bruno" }
+  ]
 
   // Reconstruir a fileira é o que faz um fixado aparecer ou sumir, então basta
   // mexer em `pinned`: carregar do disco e fixar pelo menu passam os dois aqui.
@@ -1549,47 +1265,23 @@ Item {
     root.focusWindow(windows[(current + 1) % windows.length])
   }
 
-  // Levar o foco a uma janela. Sob o Hyprland o pedido vai pelo dispatcher
-  // `focuswindow`, e não pelo `activate()` do protocolo wlr-foreign-toplevel.
-  //
-  // Porque o `activate()` não alcança janela minimizada. Minimizar aqui é
-  // estacionar a janela fora dos monitores (ver ~/.config/hypr/minimize.lua), e
-  // o `activate()` desce no `focusWindow()` do Hyprland, que desiste **calado**
-  // com janela que não está desenhada em tela nenhuma — nem evento no socket,
-  // nem erro. Era por isso que clicar no ícone de um app minimizado não fazia
-  // absolutamente nada, e só o ALT+TAB trazia de volta: ele já usa o
-  // dispatcher. O `focuswindow` foca de qualquer lugar.
-  //
-  // Só o foco, de propósito: onde a janela reaparece é decisão do hook de
-  // `window.active` do Hyprland, e não do dock. Assim o clique no ícone e o
-  // ALT+TAB devolvem a janela no mesmo lugar. Sem Hyprland (ou sem a janela na
-  // lista dele) sobra o `activate()`, que é o caminho portátil.
+  // Prefer the compositor facade so minimized windows can be restored. The
+  // portable Wayland activation remains the fallback when no stable match is
+  // available from the backend.
   function focusWindow(toplevel) {
     if (!toplevel) return
-    var hypr = root.hyprToplevel(toplevel)
-
-    if (hypr && hypr.address) {
-      // O `address` do Quickshell vem sem o `0x`, e o dispatcher quer com.
-      var target = "address:0x" + hypr.address
-      Hyprland.dispatch(Hyprland.usingLua
-        ? 'hl.dsp.focus({ window = "' + target + '" })'
-        : "focuswindow " + target)
-      return
-    }
-
-    toplevel.activate()
-  }
-
-  // A janela do Hyprland que corresponde a um toplevel do protocolo. As duas
-  // listas são a mesma coleção vista de dois lados; o `wayland` de cada entrada
-  // do Hyprland é o elo.
-  function hyprToplevel(toplevel) {
-    var list = (Hyprland.toplevels && Hyprland.toplevels.values)
-      ? Hyprland.toplevels.values : []
+    var appId = String(toplevel.appId || "").toLowerCase()
+    var title = String(toplevel.title || "")
+    var list = root.compositor ? root.compositor.windows : []
     for (var i = 0; i < list.length; i++) {
-      if (list[i] && list[i].wayland === toplevel) return list[i]
+      var window = list[i]
+      if (window && String(window.appId || "").toLowerCase() === appId
+          && String(window.title || "") === title && window.id) {
+        root.compositor.focusWindow(window.id)
+        return
+      }
     }
-    return null
+    toplevel.activate()
   }
 
   // Abrir o app. O caminho é o da própria shell (`uwsm-app -- gtk-launch`), e
@@ -1788,9 +1480,8 @@ Item {
   // rodando fora da shell — o CLI é quem sobra nos dois.
   function openAppMenu() {
     root.closeMenu()
-    if (root.shell && typeof root.shell.toggle === "function"
-        && root.shell.toggle("omarchy.menu", JSON.stringify({ menu: "apps" }))) return
-    Util.execDetached("omarchy-menu toggle apps")
+    if (root.shell && typeof root.shell.toggle === "function")
+      root.shell.toggle("omarchy.menu", JSON.stringify({ menu: "apps" }))
   }
 
   // A janela de ajustes é o *segundo* ponto de entrada deste mesmo plugin (ver
@@ -1802,11 +1493,8 @@ Item {
   // de apps.
   function openSettings() {
     root.closeMenu()
-    if (root.shell && typeof root.shell.toggle === "function") {
+    if (root.shell && typeof root.shell.toggle === "function")
       root.shell.toggle(root.pluginId, "{}")
-      return
-    }
-    Util.execDetached("omarchy-shell shell toggle " + Util.shellQuote(root.pluginId) + " '{}'")
   }
 
   // ------------------------------------------------------- notificações
@@ -2087,8 +1775,8 @@ Item {
 
   // ------------------------------------------------------- estado em disco
   //
-  // Os fixados e os recentes moram no diretório de estado do Omarchy, junto do
-  // que os outros plugins da shell guardam. É estado do usuário, e não cache:
+  // Os fixados e os recentes moram no diretório de estado do Itterum Shell.
+  // É estado do usuário, e não cache:
   // uma limpeza de `~/.cache` não pode levar embora a fileira que ele montou.
   //
   // As duas listas ficam no mesmo arquivo porque são a mesma pergunta — quem
@@ -2096,7 +1784,7 @@ Item {
   // fixado: gravá-las juntas é o que impede uma escrita pela metade deixar o
   // app nas duas listas, ou em nenhuma.
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME")
-    || Quickshell.env("HOME") + "/.local/state") + "/omarchy"
+    || Quickshell.env("HOME") + "/.local/state") + "/itterum-shell"
   readonly property string statePath: root.stateDir + "/arc-dock.json"
 
   // A primeira leitura com conteúdo é a que vale. O arquivo é nosso: reler
@@ -2201,23 +1889,7 @@ Item {
   Component.onCompleted: {
     root.rebuildSlots()
     stateFile.reload()
-    // A escolha do monitor não é binding (ver `refreshDockMonitor`), então a
-    // primeira precisa ser pedida.
-    root.refreshDockMonitor()
-    // A shell pode ter subido com um app já em tela cheia, e o primeiro evento
-    // `fullscreen` só viria quando o usuário saísse dela: sem esta consulta o
-    // dock nasceria plantado por cima do app.
-    Hyprland.refreshWorkspaces()
-    // Pela mesma razão, a geometria das janelas: a shell pode ter subido com a
-    // tela já ocupada, e o primeiro evento que reacomodasse alguma coisa viria
-    // só quando o usuário mexesse em janela.
-    if (root.coveredMode) Hyprland.refreshToplevels()
-    // A regra do vidro vive no compositor, e não neste processo: uma sessão
-    // anterior com o vidro ligado a deixou lá. Pedi-la já aqui — mesmo com o
-    // ajuste desligado, que é o caso em que ela sai — é o que garante que o
-    // compositor comece no estado que o arquivo de ajustes descreve.
-    root.applyGlass()
-    root.probeCompositorBlur()
+    if (root.compositor) root.compositor.refresh()
   }
 
   // A sombra mora numa janela própria, e não na do dock, por causa do blur: a
@@ -2490,9 +2162,7 @@ Item {
             // Resolvido aqui, e não dentro do modelo, para o binding depender
             // do índice de ícones da shell e se refazer quando ele mudar.
             iconSource: root.iconSource(modelData ? modelData.icon : "")
-            // Canto do favicon de web app, em px do ícone em repouso: a caixa do
-            // conteúdo escala junto com a onda, e o canto vai com ela.
-            iconRadius: (modelData && modelData.iconRounded) ? Math.round(root.iconSize * config.webAppIconRadius / 100) : 0
+            iconRadius: 0
             iconInset: root.iconPadding
             width: root.slotSize
             height: root.slotSize
@@ -2549,7 +2219,7 @@ Item {
             app: modelData
             menuOpen: root.menuKey.length > 0 && !!modelData && root.menuKey === modelData.key
             iconSource: root.iconSource(modelData ? modelData.icon : "")
-            iconRadius: (modelData && modelData.iconRounded) ? Math.round(root.iconSize * config.webAppIconRadius / 100) : 0
+            iconRadius: 0
             iconInset: root.iconPadding
             width: root.slotSize
             height: root.slotSize

@@ -11,6 +11,7 @@ Item {
   readonly property var workspaces: backend.workspaces
   readonly property int focusedWorkspaceId: backend.focusedWorkspaceId
   readonly property var activeWindow: backend.activeWindow
+  readonly property var windows: backend.windows
   readonly property var keyboardLayout: backend.keyboardLayout
   readonly property int rounding: backend.rounding
   readonly property int gapsOut: backend.gapsOut

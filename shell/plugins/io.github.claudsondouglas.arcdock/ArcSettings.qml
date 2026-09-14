@@ -13,7 +13,7 @@
 //
 // ------------------------------------------------------------------ o formato
 //
-// O cartão segue o formato do Omaland, o painel de ajustes do Hyprland: uma
+// O cartão segue o formato do restante da shell: uma
 // **trilha de seções** à esquerda e uma **página de linhas** à direita, cada
 // linha com nome e explicação de um lado e o controle do outro. A troca em
 // relação às duas abas de antes não é enfeite:
@@ -144,7 +144,7 @@ Item {
       items: [
         { key: "dockTheme", type: "enum", label: "Shell tone" },
         { key: "glass", type: "bool", label: "Frosted glass",
-          description: "The shell turns translucent and Hyprland blurs what passes behind it." },
+          description: "The shell turns translucent and the compositor blurs what passes behind it." },
         { key: "glassOpacity", type: "int", label: "Shell opacity", suffix: " %", needs: "glass",
           description: "How much of the shell is color, and how much is the desktop showing through." }
       ]
@@ -166,8 +166,6 @@ Item {
           description: "The red number on the corner of the icon, as on macOS: how many notifications arrived since the app was last focused." },
         { key: "recentCount", type: "int", label: "Recent apps",
           description: "Apps you opened and closed stay within reach, between the ones with a slot and the button. Zero turns the group off." },
-        { key: "webAppIconRadius", type: "int", label: "Web app icon corners", suffix: " %",
-          description: "Rounds the square favicon of a web app, as a share of its side. 20 matches the corners of the macOS-style icon packs; zero keeps it square. Icons that come from the pack are left as they are." }
       ]
     },
     {
@@ -299,7 +297,7 @@ Item {
     if (spec.key !== "glass") return ""
     if (!root.config || !root.config.glass) return ""
     if (!root.service || root.service.compositorBlur) return ""
-    return "Hyprland blur is off, so the shell is translucent without being frosted. "
+    return "Compositor blur is off, so the shell is translucent without being frosted. "
       + "Enable decoration:blur in ~/.config/hypr/looknfeel.lua."
   }
 

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "settings": {
+    "dockTheme": "theme",
+    "magnifyScale": 111,
+    "edge": "bottom",
+    "autoHide": "covered"
+  }
+}

@@ -5,7 +5,7 @@
   "version": "0.3.0",
   "author": "Claudson",
   "license": "MIT",
-  "description": "A dock for the Omarchy shell that looks like the macOS dock: frosted glass, magnification under the pointer, one slot per app.",
+  "description": "A dock for Itterum Shell with frosted glass, pointer magnification, and one slot per app.",
   "kinds": [
     "service",
     "panel"

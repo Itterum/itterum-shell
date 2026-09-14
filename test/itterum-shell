@@ -10,6 +10,7 @@ tests=(
   "$ROOT/test/shell.d/compositor-boundary-test.sh"
   "$ROOT/test/shell.d/launcher-scope-test.sh"
   "$ROOT/test/shell.d/audio-test.sh"
+  "$ROOT/test/shell.d/arc-dock-scope-test.sh"
   "$ROOT/test/shell.d/battery-test.sh"
   "$ROOT/test/shell.d/idle-test.sh"
   "$ROOT/test/shell.d/keyboard-layout-test.sh"
@@ -38,5 +39,6 @@ done
 
 node --test "$ROOT/test/js/hyprland-mapping.test.mjs"
 node --test "$ROOT/test/js/desktop-entry-filter.test.mjs"
+node --test "$ROOT/test/js/arc-dock-model.test.mjs"
 
 printf '\nAll %d Itterum Shell test files passed.\n' "${#tests[@]}"

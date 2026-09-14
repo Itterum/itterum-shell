@@ -35,6 +35,18 @@ test("maps active window metadata without compositor objects", () => {
   assert.equal(Mapping.activeWindow(null), null)
 })
 
+test("maps window geometry for compositor-independent consumers", () => {
+  assert.deepEqual(Mapping.windows([{
+    address: "0xabc", class: "foot", title: "Terminal", monitor: "DP-1",
+    workspace: { id: 2 }, at: [10, 20], size: [800, 600], fullscreen: 1,
+    hidden: false
+  }]), [{
+    id: "0xabc", address: "0xabc", appId: "foot", title: "Terminal",
+    outputId: "DP-1", workspaceId: 2, x: 10, y: 20, width: 800,
+    height: 600, fullscreen: true, hidden: false
+  }])
+})
+
 test("maps keyboard layout updates for the named keyboard", () => {
   const devices = {
     keyboards: [

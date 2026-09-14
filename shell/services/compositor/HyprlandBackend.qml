@@ -13,6 +13,7 @@ Item {
   property var workspaces: []
   property int focusedWorkspaceId: 0
   property var activeWindow: null
+  property var windows: []
   property var keyboardLayout: null
   property int rounding: 8
   property int gapsOut: 6
@@ -123,7 +124,11 @@ Item {
   Process {
     id: clientsProc
     command: ["hyprctl", "-j", "clients"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: { root._rawClients = root.parseJson(text, []); root.refreshWorkspaceModel() } }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: {
+      root._rawClients = root.parseJson(text, [])
+      root.windows = Mapping.windows(root._rawClients)
+      root.refreshWorkspaceModel()
+    } }
   }
 
   Process {

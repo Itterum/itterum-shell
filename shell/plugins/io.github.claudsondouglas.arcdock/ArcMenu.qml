@@ -11,9 +11,9 @@
 // política (o que um app oferece) fica num lugar só.
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
+import qs.services.compositor
 
 PopupWindow {
   id: menu
@@ -93,7 +93,7 @@ PopupWindow {
   // Fecha ao clicar fora. Enquanto o grab está de pé o clique só chega às
   // janelas listadas; o dock entra na lista para que clicar noutro slot troque
   // o menu em vez de só fechá-lo.
-  HyprlandFocusGrab {
+  CompositorFocusGrab {
     active: menu.open
     windows: menu.anchorWindow ? [menu, menu.anchorWindow] : [menu]
     onCleared: menu.dismissed()

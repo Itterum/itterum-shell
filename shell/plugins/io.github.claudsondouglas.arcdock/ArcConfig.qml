@@ -24,7 +24,7 @@ Item {
   // ele pode versionar junto com o resto da config; o outro é a fileira que a
   // sessão montou.
   readonly property string configDir: (Quickshell.env("XDG_CONFIG_HOME")
-    || Quickshell.env("HOME") + "/.config") + "/omarchy"
+    || Quickshell.env("HOME") + "/.config") + "/itterum-shell"
   readonly property string path: config.configDir + "/arc-dock.json"
 
   // Os padrões. São a aparência do dock do macOS, que é o que este plugin
@@ -55,9 +55,9 @@ Item {
     // tema. Com 1 a onda é um pico solitário; de 3 para cima ela pega a fileira
     // inteira num dock pequeno.
     magnify: true,
-    magnifyScale: 125,
+    magnifyScale: 111,
     magnifyReach: 2,
-    // O vidro: fundo translúcido sobre o blur do Hyprland, em vez do tom cheio
+    // O vidro: fundo translúcido sobre o blur do compositor, em vez do tom cheio
     // do tema. A opacidade é *inteira, em por cento*, e não uma fração de 0 a
     // 1: assim ela passa pela mesma faixa e pelo mesmo saneamento das outras
     // medidas, e no arquivo editado à mão "25" se lê tão direto quanto "52 px".
@@ -74,7 +74,7 @@ Item {
     // Não é redundante com `glassOpacity`: a opacidade diz *quanto* do fundo
     // atravessa, esta diz *de que cor* é o que fica na frente. Baixar a
     // opacidade de uma casca clara não a escurece, só a apaga.
-    dockTheme: "light",
+    dockTheme: "theme",
     edge: "bottom",
     screenName: "",
     // Esconde quando uma janela cobre o dock, e não só em tela cheia: com
@@ -100,13 +100,6 @@ Item {
     // Quatro recentes: com ícone de 52 e slots colados, seis já empurravam o
     // dock para uma lista.
     recentCount: 4,
-    // O canto do ícone de um web app, em *por cento do lado do ícone*. O ícone
-    // de web app é um favicon quadrado (o que o omarchy-webapp-install baixa,
-    // ou o PNG que o browser gera para um PWA), e ao lado dos ícones do pacote,
-    // que vêm arredondados, ele é o único de canto vivo. Os 20% são a medida
-    // do MacTahoe: placa de 56 com raio 13 numa caixa de 64. Zero deixa o
-    // quadrado. O que já vem do pacote não é tocado.
-    webAppIconRadius: 20,
     // Modo de retrato: o dock vai para o meio da tela e não se esconde, para
     // a captura mostrá-lo inteiro sobre o papel de parede desfocado. Não tem
     // linha na janela de ajustes — é o `docs/preview.sh` que liga, captura e
@@ -136,10 +129,7 @@ Item {
     // Zero desliga o grupo dos recentes. O teto vale também para o histórico
     // guardado em disco (ver `recentHistoryLimit` no Arcdock): é ele que diz
     // quanta memória de apps fechados o dock chega a ter.
-    recentCount: [0, 12],
-    // Em 50 o canto vira meio lado e o quadrado, um círculo; acima disso o
-    // raio passaria do centro e o desenho já não seria um canto.
-    webAppIconRadius: [0, 50]
+    recentCount: [0, 12]
   })
 
   // O mesmo para as chaves de texto: um valor fora da lista cai no padrão, em
@@ -208,7 +198,6 @@ Item {
   readonly property bool showIndicators: config.flag("showIndicators")
   readonly property bool showBadges: config.flag("showBadges")
   readonly property int recentCount: config.num("recentCount")
-  readonly property int webAppIconRadius: config.num("webAppIconRadius")
   readonly property bool printMode: config.flag("printMode")
 
   // Esta chave está no padrão do tema? É o que a janela de ajustes mostra para

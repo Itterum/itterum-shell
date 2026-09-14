@@ -44,6 +44,7 @@
     }
   },
   "plugins": [
+    { "id": "io.github.claudsondouglas.arcdock" },
     { "id": "omarchy.notifications" },
     { "id": "omarchy.osd" },
     { "id": "omarchy.lock" },
