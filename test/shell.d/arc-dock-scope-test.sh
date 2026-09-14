@@ -25,3 +25,10 @@ pass "Arc Dock has no private compositor backend"
 grep -F 'XDG_CONFIG_HOME' "$dock/ArcConfig.qml" >/dev/null || fail "Arc Dock config uses XDG"
 grep -F '/itterum-shell' "$dock/ArcConfig.qml" >/dev/null || fail "Arc Dock config uses Itterum namespace"
 pass "Arc Dock config uses the Itterum XDG namespace"
+
+expected_pins='["foot","org.gnome.Nautilus","dev.zed.Zed","chatgpt","obsidian","com.brave.Browser","com.google.Chrome","org.telegram.desktop","bruno"]'
+actual_pins=$(jq -c '.pinned' "$ROOT/config/itterum-shell/arc-dock.json")
+[[ $actual_pins == "$expected_pins" ]] || fail "Arc Dock pins match the declarative workstation default"
+grep -F 'property var pinned: config.defaultPinned' "$dock/Arcdock.qml" >/dev/null \
+  || fail "Arc Dock reads initial pins from declarative config"
+pass "Arc Dock reads the declarative workstation pin order"

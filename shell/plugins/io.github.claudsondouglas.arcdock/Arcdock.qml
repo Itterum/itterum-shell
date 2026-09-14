@@ -976,17 +976,7 @@ Item {
   // as janelas — é ela que reconhece o app quando ele abre e evita um segundo
   // slot — e `entry` é o id da entrada .desktop, que é o que desenha o ícone e
   // abre o app enquanto não há janela nenhuma.
-  property var pinned: [
-    { key: "foot", entry: "foot" },
-    { key: "org.gnome.nautilus", entry: "org.gnome.Nautilus" },
-    { key: "dev.zed.zed", entry: "dev.zed.Zed" },
-    { key: "chatgpt", entry: "chatgpt" },
-    { key: "obsidian", entry: "obsidian" },
-    { key: "com.brave.browser", entry: "com.brave.Browser" },
-    { key: "com.google.chrome", entry: "com.google.Chrome" },
-    { key: "org.telegram.desktop", entry: "org.telegram.desktop" },
-    { key: "bruno", entry: "bruno" }
-  ]
+  property var pinned: config.defaultPinned
 
   // Reconstruir a fileira é o que faz um fixado aparecer ou sumir, então basta
   // mexer em `pinned`: carregar do disco e fixar pelo menu passam os dois aqui.

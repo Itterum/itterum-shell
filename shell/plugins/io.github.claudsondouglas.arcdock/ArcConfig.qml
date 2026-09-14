@@ -143,6 +143,7 @@ Item {
 
   // O que veio do arquivo, cru. Só as chaves que o usuário mudou moram aqui.
   property var stored: ({})
+  property var defaultPinned: []
 
   // ------------------------------------------------------------- leitura
   //
@@ -302,6 +303,18 @@ Item {
     }
 
     var settings = (data && Util.isPlainObject(data.settings)) ? data.settings : {}
+    var pins = (data && Array.isArray(data.pinned)) ? data.pinned : []
+    var normalizedPins = []
+    var seenPins = ({})
+    for (var i = 0; i < pins.length; i++) {
+      var entry = String(pins[i] || "").trim()
+      var key = entry.toLowerCase()
+      if (key.slice(-8) === ".desktop") key = key.slice(0, -8)
+      if (!key || seenPins[key]) continue
+      seenPins[key] = true
+      normalizedPins.push({ key: key, entry: entry })
+    }
+    config.defaultPinned = normalizedPins
     var next = ({})
     for (var key in settings) next[key] = settings[key]
     config.stored = next
