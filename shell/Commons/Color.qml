@@ -13,8 +13,8 @@ QtObject {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string stateHome: home + "/.local/state"
-  readonly property string currentThemePath: stateHome + "/omarchy/current/theme"
+  readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")
+  readonly property string currentThemePath: configHome + "/itterum-shell/theme"
 
   property color foreground: "#cacccc"
   property color background: "#101315"
@@ -199,7 +199,7 @@ QtObject {
   }
 
   // Re-derive `shellValues` from theme base + user override and push it to
-  // Style. User keys win, so a machine-level `~/.config/omarchy/shell.toml`
+  // Style. User keys win, so a machine-level Itterum shell theme file
   // survives theme switches (which replace only themeShellValues).
   function mergeShell() {
     var merged = {}
@@ -236,12 +236,11 @@ QtObject {
     onLoaded: root.loadShell(text())
     onLoadFailed: root.loadShell("")
   }
-  // Machine-level override, layered on top of whatever theme is active. This
-  // is where `omarchy display text size` writes `[font] base-size`. Watched so the
-  // CLI takes effect live without restarting the shell; absent by default.
+  // Optional machine-level typography overrides are watched so declarative
+  // config changes can take effect without restarting the shell.
   property FileView userShellFile: FileView {
     id: userShellFile
-    path: root.home + "/.config/omarchy/shell.toml"
+    path: root.configHome + "/itterum-shell/theme.toml"
     watchChanges: true
     printErrors: false
     onLoaded: root.loadUserShell(text())

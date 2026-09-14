@@ -7,6 +7,7 @@ import qs.Commons
 
 import "plugins/bar"
 import "services"
+import "services/compositor"
 import "services/AuthServiceStore.js" as AuthServiceStore
 
 ShellRoot {
@@ -18,19 +19,41 @@ ShellRoot {
   // own empty copies.
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
-  property AppLibrary appLibrary: AppLibrary { }
-  property Backend backend: Backend { }
+  property AppLibrary appLibrary: AppLibrary {
+    allowlist: shell.shellConfig && Array.isArray(shell.shellConfig.applications)
+      ? shell.shellConfig.applications : []
+  }
+  property Compositor compositor: Compositor { }
+
+  function syncCompositorStyle() {
+    Style.applyCompositorMetrics(compositor.rounding, compositor.gapsOut)
+  }
+
+  Connections {
+    target: compositor
+    function onRoundingChanged() { shell.syncCompositorStyle() }
+    function onGapsOutChanged() { shell.syncCompositorStyle() }
+  }
+
+  Connections {
+    target: appLibrary
+    function onLaunchFeedbackRequested(visible, message) {
+      if (visible) shell.summon("omarchy.osd", JSON.stringify({ icon: "󱓞", message: message, duration: 0 }))
+      else shell.hide("omarchy.osd")
+    }
+  }
 
   property string home: Quickshell.env("HOME")
 
-  // The omarchy-shell host is the long-running entry point. Plugins live in
-  // sibling directories under plugins/. OMARCHY_PATH is provided by the uwsm
-  // session environment and is the single source of truth for this checkout.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
-  readonly property string shellPath: omarchyPath + "/shell"
+  // Packaged resources are immutable. Home Manager may provide a complete
+  // user override below the Itterum XDG namespace.
+  property string resourcePath: Quickshell.env("ITTERUM_SHELL_PATH")
+  readonly property string omarchyPath: resourcePath
+  property string xdgConfigHome: Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")
+  readonly property string shellPath: resourcePath + "/shell"
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
-  readonly property string defaultsPath: omarchyPath + "/config/omarchy/shell.json"
-  readonly property string userConfigPath: home + "/.config/omarchy/shell.json"
+  readonly property string defaultsPath: resourcePath + "/config/shell.json"
+  readonly property string userConfigPath: xdgConfigHome + "/itterum-shell/shell.json"
 
   // Bundled fallback so the shell can start even when the default shell.json is
   // missing or unreadable. The bar config here mirrors the on-disk defaults
@@ -144,8 +167,9 @@ ShellRoot {
   }
 
   Component.onCompleted: {
-    console.log("omarchy-shell paths",
-      "omarchyPath=" + shell.omarchyPath,
+    shell.syncCompositorStyle()
+    console.log("itterum-shell paths",
+      "resourcePath=" + shell.resourcePath,
       "shellDir=" + Quickshell.shellDir,
       "firstPartyPluginsDir=" + shell.firstPartyPluginsDir,
       "defaultsPath=" + shell.defaultsPath,
@@ -224,7 +248,7 @@ ShellRoot {
     if ("barWidgetRegistry" in target) target.barWidgetRegistry = shell.pluginBarWidgetRegistryFor(manifest)
     if ("pluginRegistry" in target) target.pluginRegistry = shell.pluginRegistryFor(manifest)
     if ("barConfig" in target) target.barConfig = shell.barConfigFor(manifest)
-    if ("backend" in target) target.backend = shell.backend
+    if ("compositor" in target) target.compositor = shell.compositor
     shell.bar = target
   }
 
@@ -237,7 +261,7 @@ ShellRoot {
       barConfig: shell.barConfig
       shell: shell
       manifest: shell.barManifestFor(shell.defaultBarId)
-      backend: shell.backend
+      compositor: shell.compositor
     }
   }
 

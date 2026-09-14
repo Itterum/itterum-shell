@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -euo pipefail
+
+export ITTERUM_SHELL_PATH="@resourcePath@"
+
+exec "@quickshell@/bin/qs" -p "$ITTERUM_SHELL_PATH/shell" "$@"

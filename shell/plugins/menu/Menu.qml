@@ -9,13 +9,13 @@ import "MenuModel.js" as MenuModel
 Item {
   id: root
 
-  // Injected by omarchy-shell when this plugin is summoned.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  // Injected by the Itterum Shell host when this plugin is summoned.
+  property string omarchyPath: ""
   property var shell: null
   property var manifest: null
 
   // Plugin lifecycle hooks. The host calls open(payloadJson) after
-  // `omarchy-shell shell summon omarchy.menu ...` and close() when hidden.
+  // the host's internal lifecycle API and close() when hidden.
   property string pendingInitialMenu: "root"
 
   function open(payloadJson) {
@@ -47,8 +47,8 @@ Item {
   // JSONC menu definitions. The shell parses both at startup and merges
   // the user file on top of the defaults, so the keybind → IPC → visible
   // path doesn't have to shell out to bash + jq on every open.
-  property string defaultMenuPath: omarchyPath + "/default/omarchy/omarchy-menu.jsonc"
-  property string userMenuPath: Quickshell.env("HOME") + "/.config/omarchy/extensions/omarchy-menu.jsonc"
+  property string defaultMenuPath: omarchyPath + "/config/menu.jsonc"
+  property string userMenuPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/itterum-shell/menu.jsonc"
   property var defaultMenuItems: []
   property var userMenuItems: []
   property bool opened: false
@@ -78,9 +78,6 @@ Item {
   // Shared application engine (entries, hidden filters, icons, launch,
   // removal), owned by the shell and also used by the standalone launcher.
   readonly property var appLibrary: root.shell ? root.shell.appLibrary : null
-  property bool deleteConfirmOpen: false
-  property var deleteTarget: null
-  onOpenedChanged: if (!opened) { deleteConfirmOpen = false; deleteTarget = null }
   // Bound to the central [menu] section in shell.toml via Color.qml.
   // Each color already includes its alpha companion (composed in the
   // singleton), so consumers can drop them straight into a Rectangle.
@@ -266,19 +263,7 @@ Item {
   // turns those into menu items children of `menuId`. A `volatile` provider
   // re-runs every time its submenu is entered, so a font installed since the
   // shell started shows up without restarting it.
-  readonly property var providers: ({
-    "fonts": {
-      script: "current=$(omarchy-font-current 2>/dev/null); omarchy-font-list 2>/dev/null | while read -r f; do [[ -z $f ]] && continue; printf '%s\\t%s\\t%s\\n' \"$f\" \"$f\" \"$current\"; done",
-      icon: "",
-      volatile: true,
-      actionFor: function(value) { return "omarchy-font-set " + Util.shellQuote(value) }
-    },
-    "power-profiles": {
-      script: "current=$(powerprofilesctl get 2>/dev/null); omarchy-powerprofiles-list 2>/dev/null | while read -r p; do [[ -z $p ]] && continue; printf '%s\\t%s\\t%s\\n' \"$p\" \"$p\" \"$current\"; done",
-      icon: "\udb81\udc0b",
-      actionFor: function(value) { return "omarchy-powerprofiles-set autodetect " + Util.shellQuote(value) }
-    }
-  })
+  readonly property var providers: ({})
 
   function slugify(value) {
     return MenuModel.slugify(value)
@@ -286,7 +271,7 @@ Item {
 
   // The apps provider is QML-native: rows come from the shared AppLibrary
   // (DesktopEntries) instead of a bash enumeration, so they carry image
-  // icons, launch feedback, and uninstall support like the launcher.
+  // icons and launch feedback like the launcher.
   function mergeAppRows() {
     if (!root.appLibrary) return
 
@@ -757,7 +742,6 @@ Item {
   }
 
   function activateIndex(index, fromPointer) {
-    if (root.deleteConfirmOpen) return
     if (root.dmenuActive) {
       if (root.mode === "input") {
         root.applyDmenuSelection(root.filterText)
@@ -784,32 +768,6 @@ Item {
     } else {
       root.applySelected(row.itemId, row.action)
     }
-  }
-
-  function requestDeleteSelected() {
-    if (!root.cursorActive || root.selectedIndex < 0 || root.selectedIndex >= displayModel.count) return
-    var row = displayModel.get(root.selectedIndex)
-    if (!row || row.kind !== "app") return
-    root.deleteTarget = { appId: row.appId, label: row.label }
-    deleteConfirm.selectedIndex = 1
-    root.deleteConfirmOpen = true
-  }
-
-  function cancelDelete() {
-    root.deleteConfirmOpen = false
-    root.deleteTarget = null
-    deleteConfirm.selectedIndex = 1
-    root.disarmPointer()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
-  }
-
-  function confirmDelete() {
-    var target = root.deleteTarget
-    root.deleteConfirmOpen = false
-    root.deleteTarget = null
-    if (!target) return
-    root.cancel()
-    if (root.appLibrary) root.appLibrary.remove(target.appId, target.label)
   }
 
   function applyDmenuSelection(value) {
@@ -960,7 +918,7 @@ Item {
   }
 
   // The JSONC sources are watched so live edits to the default file (or the
-  // user extension at ~/.config/omarchy/extensions/omarchy-menu.jsonc) take
+  // user extension under the Itterum XDG namespace) take
   // effect without restarting the shell.
   FileView {
     id: defaultMenuFile
@@ -1116,20 +1074,12 @@ Item {
       Item {
         id: keyCatcher
         anchors.fill: parent
-        z: root.deleteConfirmOpen ? 20 : 0
+        z: 0
         focus: true
 
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
-          if (root.deleteConfirmOpen) {
-            if (deleteConfirm.handleKey(event)) event.accepted = true
-            return
-          }
-
-          if (event.key === Qt.Key_Delete) {
-            root.requestDeleteSelected()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Escape) {
+          if (event.key === Qt.Key_Escape) {
             if (root.filterText) root.setFilter("")
             else root.cancel()
             event.accepted = true
@@ -1164,24 +1114,6 @@ Item {
           }
         }
 
-        ConfirmDialog {
-          id: deleteConfirm
-
-          anchors.fill: parent
-          opened: root.deleteConfirmOpen
-          z: 10
-          message: "Do you want to uninstall " + ((root.deleteTarget && root.deleteTarget.label) || "") + "?"
-          confirmText: "Uninstall"
-          background: root.background
-          foreground: root.foreground
-          scrim: root.scrim
-          selectedBackground: root.selectedBackground
-          selectedText: root.selectedText
-          fontFamily: root.fontFamily
-          cornerRadius: root.cornerRadius
-          onCanceled: root.cancelDelete()
-          onConfirmed: root.confirmDelete()
-        }
       }
 
       Column {

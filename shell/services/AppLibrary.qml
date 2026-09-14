@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import "AppSearch.js" as AppSearch
+import "DesktopEntryFilter.js" as DesktopEntryFilter
 
 // Shared desktop-application library: the sorted entry list with hidden-entry
 // filtering, the icon fallback index, launch feedback, and entry removal.
@@ -11,7 +12,8 @@ import "AppSearch.js" as AppSearch
 Item {
   id: root
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  property string resourcePath: Quickshell.env("ITTERUM_SHELL_PATH")
+  property var allowlist: []
 
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
@@ -35,6 +37,7 @@ Item {
   // Emitted whenever the visible application set may have changed: desktop
   // entries appeared or vanished, or the hidden-entry filters reloaded.
   signal appsChanged()
+  signal launchFeedbackRequested(bool visible, string message)
 
   function entryName(entry) {
     return AppSearch.entryName(entry)
@@ -51,7 +54,8 @@ Item {
 
   function sortedEntries(query) {
     var values = DesktopEntries.applications.values || []
-    return AppSearch.sortedEntries(values, query, function(entry) { return root.isHiddenEntry(entry) })
+    var visible = DesktopEntryFilter.visible(values, root.allowlist)
+    return AppSearch.sortedEntries(visible, query, function(entry) { return root.isHiddenEntry(entry) })
   }
 
   function iconSource(icon) {
@@ -83,12 +87,6 @@ Item {
     // resolver supports IDs with spaces and entries that UWSM rejects.
     // Keep the .desktop suffix or ids like org.telegram.desktop won't resolve.
     Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(id + ".desktop"))
-  }
-
-  function remove(desktopId, name) {
-    var id = String(desktopId || "")
-    if (!id) return
-    Util.execDetached(Util.shellQuote(root.omarchyPath + "/bin/omarchy-remove-launcher-entry") + " " + Util.shellQuote(id) + " " + Util.shellQuote(String(name || id)))
   }
 
   function normalizeDesktopId(id) {
@@ -149,7 +147,7 @@ Item {
 
   function hiddenEntryScanCommand() {
     var desktop = [Quickshell.env("XDG_CURRENT_DESKTOP"), Quickshell.env("XDG_SESSION_DESKTOP"), Quickshell.env("DESKTOP_SESSION")].filter(function(v) { return String(v || "").length > 0 }).join(":")
-    var script = root.omarchyPath + "/shell/services/hidden-entries.sh"
+    var script = root.resourcePath + "/shell/services/hidden-entries.sh"
     return Util.shellQuote(script) + " " + Util.shellQuote(desktop)
   }
 
@@ -171,7 +169,7 @@ Item {
     launchDelay.stop()
     launchTimeout.stop()
     if (root.launchOsdOpen) {
-      Quickshell.execDetached(["omarchy-shell", "osd", "close"])
+      root.launchFeedbackRequested(false, "")
       root.launchOsdOpen = false
     }
   }
@@ -218,7 +216,7 @@ Item {
   }
 
   FileView {
-    path: root.omarchyPath + "/default/omarchy/launcher.hides"
+    path: root.resourcePath + "/config/launcher.hides"
     watchChanges: true
     printErrors: false
     onLoaded: root.loadConfiguredHides(text())
@@ -242,7 +240,7 @@ Item {
     onTriggered: {
       if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
       root.launchOsdOpen = true
-      Quickshell.execDetached(["omarchy-shell", "osd", "show", JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })])
+      root.launchFeedbackRequested(true, root.launchOsdMessage)
     }
   }
 

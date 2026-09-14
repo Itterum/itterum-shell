@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.claudsondouglas.arcdock",
+  "name": "Arc Dock",
+  "version": "0.3.0",
+  "author": "Claudson",
+  "license": "MIT",
+  "description": "A dock for Itterum Shell with frosted glass, pointer magnification, and one slot per app.",
+  "kinds": [
+    "service",
+    "panel"
+  ],
+  "entryPoints": {
+    "service": "Arcdock.qml",
+    "panel": "ArcSettings.qml"
+  }
+}

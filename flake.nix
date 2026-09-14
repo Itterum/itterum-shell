@@ -12,6 +12,10 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        quickshellPackage = quickshell.packages.${system}.default;
+        itterumShell = pkgs.callPackage ./nix/package.nix {
+          quickshell = quickshellPackage;
+        };
 
         # Собираем все Qt зависимости в один список
         qtDeps = with pkgs.qt6; [
@@ -21,9 +25,19 @@
         ];
       in
       {
+        packages = {
+          default = itterumShell;
+          itterum-shell = itterumShell;
+        };
+
+        apps.default = {
+          type = "app";
+          program = pkgs.lib.getExe itterumShell;
+        };
+
         devShells.default = pkgs.mkShell {
           packages = [
-            quickshell.packages.${system}.default
+            quickshellPackage
           ] ++ qtDeps;
 
           shellHook = ''

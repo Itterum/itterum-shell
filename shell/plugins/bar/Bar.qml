@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -11,8 +10,8 @@ import "BarModel.js" as BarModel
 Item {
   id: root
 
-  // The omarchy-shell host injects omarchyPath from OMARCHY_PATH.
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
+  // The Itterum Shell host injects its immutable resource path.
+  property string omarchyPath: ""
   // Injected by the host shell so bar slots can resolve enabled widgets.
   property var barWidgetRegistry: fallbackBarWidgetRegistry
   // Read-only registry view for third-party full bars; the built-in bar does
@@ -26,8 +25,8 @@ Item {
   // Injected by the host shell. Used for shell-wide actions such as opening
   // settings and persisting inline widget state.
   property var shell: null
-  // Shared facade to backend services for widgets during migration.
-  property var backend: null
+  // Stable compositor facade; compositor-specific APIs stay behind it.
+  property var compositor: null
   // Manifest for the active bar option. Present for custom bars and useful for
   // diagnostics; the built-in bar does not otherwise need it.
   property var manifest: null
@@ -42,8 +41,11 @@ Item {
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   property string home: Quickshell.env("HOME")
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")
+  readonly property string barStateDir: stateHome + "/itterum-shell/toggles"
+  readonly property string barHiddenPath: barStateDir + "/bar-off"
   property string stateHome: home + "/.local/state"
-  property string omarchyConfigDir: home + "/.config/omarchy"
+  property string omarchyConfigDir: (Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")) + "/itterum-shell"
   property var fallbackBarConfig: ({
     position: "top",
     transparent: false,
@@ -712,12 +714,11 @@ Item {
     return window && window.screen ? String(window.screen.name || "") : ""
   }
 
-  // The output Hyprland has focused, which is where a keyboard-summoned panel
-  // belongs. Empty until Hyprland reports one, which leaves panel routing on
+  // The output the compositor has focused, which is where a keyboard-summoned
+  // panel belongs. Empty until the backend reports one, leaving panel routing on
   // its per-monitor fallback rather than guessing at an output.
   function focusedScreenName() {
-    var monitor = Hyprland.focusedMonitor
-    return monitor ? String(monitor.name || "") : ""
+    return root.compositor ? String(root.compositor.focusedOutputId || "") : ""
   }
 
   // Resolve the live bar-widget instance for a plugin id (e.g. "omarchy.bluetooth").
@@ -1170,11 +1171,11 @@ Item {
   Process {
     id: barHiddenProbe
     running: true
-    command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
+    command: ["bash", "-c", "[[ -f \"$1\" ]] && echo yes || echo no", "bash", root.barHiddenPath]
     stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
   }
   FileView {
-    path: root.home + "/.local/state/omarchy/toggles"
+    path: root.barStateDir
     watchChanges: true
     printErrors: false
     onFileChanged: barHiddenProbe.running = true
@@ -2004,7 +2005,7 @@ Item {
       var barValue = firstParty
         ? root : root.pluginBarApiFor(pluginApiId, moduleName, registered)
       if ("bar" in target) target.bar = barValue
-      if ("backend" in target) target.backend = root.backend
+      if ("compositor" in target) target.compositor = root.compositor
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
     }

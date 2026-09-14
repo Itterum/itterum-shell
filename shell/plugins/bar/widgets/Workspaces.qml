@@ -15,18 +15,15 @@ BarWidget {
     { id: 5, name: "5", focused: false, occupied: false, toplevels: { values: [] } }
   ]
 
-  property var backend: null
-  property var backendCompositor: backend && backend.compositor ? backend.compositor : null
+  property var compositor: root.bar ? root.bar.compositor : null
 
-  onBarChanged: root.backend = root.bar && "backend" in root.bar ? root.bar.backend : null
-  readonly property bool backendConnected: !!backend && backend.connected === true
-  readonly property bool canInteract: !!root.bar && (backendConnected || typeof root.bar.run === "function")
+  readonly property bool canInteract: !!compositor && compositor.available === true
 
   readonly property var workspaceValues: {
-    if (!backendCompositor || !Array.isArray(backendCompositor.workspaces) || backendCompositor.workspaces.length === 0) {
+    if (!compositor || !Array.isArray(compositor.workspaces) || compositor.workspaces.length === 0) {
       return fallbackWorkspaceModel
     }
-    return backendCompositor.workspaces
+    return compositor.workspaces
   }
 
   function workspaceById(id) {
@@ -50,21 +47,9 @@ BarWidget {
     return ids
   }
 
-  Component.onCompleted: {
-    root.backend = root.bar && "backend" in root.bar ? root.bar.backend : null
-  }
-
   function focusWorkspace(id) {
     if (!root.canInteract) return
-
-    if (backendCompositor && typeof backendCompositor.focusWorkspace === "function") {
-      backendCompositor.focusWorkspace(id)
-      return
-    }
-
-    if (root.bar && typeof root.bar.run === "function") {
-      root.bar.run("hyprctl dispatch " + Util.shellQuote("workspace " + String(id)))
-    }
+    compositor.focusWorkspace(id)
   }
 
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
@@ -87,8 +72,7 @@ BarWidget {
         required property int modelData
 
         readonly property var workspace: root.workspaceById(modelData)
-        readonly property bool occupied: workspace !== null && workspace.toplevels && Array.isArray(workspace.toplevels.values)
-          && workspace.toplevels.values.length > 0
+        readonly property bool occupied: workspace !== null && workspace.occupied === true
         readonly property bool focused: workspace !== null && workspace.focused === true
 
         bar: root.bar

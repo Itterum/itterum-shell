@@ -1,6 +1,4 @@
 import QtQuick
-import Quickshell
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -9,7 +7,8 @@ BarWidget {
   moduleName: "omarchy.active-window"
 
 
-  readonly property var toplevel: ToplevelManager.activeToplevel
+  readonly property var compositor: root.bar ? root.bar.compositor : null
+  readonly property var toplevel: compositor ? compositor.activeWindow : null
   readonly property string title: toplevel ? (toplevel.title || toplevel.appId || "") : ""
   readonly property int maxLabelWidth: Number(setting("maxWidth", 280))
 
@@ -51,11 +50,11 @@ BarWidget {
     onClicked: function(mouse) {
       if (!root.toplevel) return
       if (mouse.button === Qt.MiddleButton) {
-        root.toplevel.close()
+        root.compositor.closeWindow(root.toplevel.id)
       } else if (mouse.button === Qt.RightButton) {
-        root.toplevel.close()
+        root.compositor.closeWindow(root.toplevel.id)
       } else {
-        root.toplevel.activate()
+        root.compositor.focusWindow(root.toplevel.id)
       }
     }
     onEntered: if (root.bar) root.bar.showTooltip(root, root.title)

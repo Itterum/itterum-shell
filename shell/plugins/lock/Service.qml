@@ -177,14 +177,14 @@ Item {
   function runWake() {
     root.displaysBlank = false
     root.monitorDpmsKnown = false
-    if (!wakeProcess.running) wakeProcess.running = true
+    if (root.shell && root.shell.compositor) root.shell.compositor.setOutputPower(true)
     if (lockRequested) armBlankTimer()
   }
 
   function runBlank() {
     root.displaysBlank = true
     root.monitorDpmsKnown = false
-    if (!blankProcess.running) blankProcess.running = true
+    if (root.shell && root.shell.compositor) root.shell.compositor.setOutputPower(false)
   }
 
   function screenBlank(screenName) {
@@ -209,6 +209,18 @@ Item {
     }
     monitorDpms = dpms
     monitorDpmsKnown = true
+  }
+
+  function applyCompositorOutputs() {
+    var outputs = root.shell && root.shell.compositor ? root.shell.compositor.outputs : []
+    if (!Array.isArray(outputs)) return
+    var dpms = {}
+    for (var i = 0; i < outputs.length; i++) {
+      var output = outputs[i]
+      if (output && output.name && output.enabled) dpms[String(output.name)] = output.powered === true
+    }
+    root.monitorDpms = dpms
+    root.monitorDpmsKnown = outputs.length > 0
   }
 
   function submitPassword(value) {
@@ -442,25 +454,9 @@ Item {
     }
   }
 
-  Process {
-    id: wakeProcess
-    command: ["bash", "-c", "omarchy-system-wake"]
-  }
-
-  Process {
-    id: blankProcess
-    command: ["bash", "-c", "omarchy-brightness-keyboard off; omarchy-brightness-display off"]
-  }
-
-  // Quickshell exposes no DPMS signal, so the panel state is polled while a
-  // video is the locked wallpaper. A wake or blank request drops the last
-  // answer, so its optimistic state applies until the next poll confirms it.
-  Process {
-    id: monitorDpmsProcess
-    command: ["hyprctl", "monitors", "-j"]
-    stdout: StdioCollector {
-      onStreamFinished: root.applyMonitorDpms(text)
-    }
+  Connections {
+    target: root.shell ? root.shell.compositor : null
+    function onOutputsChanged() { root.applyCompositorOutputs() }
   }
 
   Timer {
@@ -470,7 +466,7 @@ Item {
     triggeredOnStart: true
     running: root.locked && root.videoBackground
     onTriggered: {
-      if (!monitorDpmsProcess.running) monitorDpmsProcess.running = true
+      if (root.shell && root.shell.compositor) root.shell.compositor.refresh()
     }
     onRunningChanged: {
       if (!running) root.monitorDpmsKnown = false

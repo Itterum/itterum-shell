@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "applications": [
+    "itterum-helix",
+    "dev.zed.Zed",
+    "foot",
+    "itterum-codex-cli",
+    "com.openai.codex",
+    "md.obsidian.Obsidian",
+    "com.usebruno.Bruno",
+    "org.gnome.Nautilus",
+    "org.gnome.DiskUtility",
+    "itterum-zellij",
+    "org.telegram.desktop",
+    "com.brave.Browser",
+    "google-chrome"
+  ],
+  "idle": {
+    "screensaver": 150,
+    "lock": 300
+  },
+  "bar": {
+    "position": "top",
+    "transparent": false,
+    "centerAnchor": "omarchy.clock",
+    "layout": {
+      "left": [
+        { "id": "omarchy.menu" },
+        { "id": "omarchy.workspaces" }
+      ],
+      "center": [
+        { "id": "omarchy.active-window" },
+        { "id": "omarchy.clock", "format": "dddd HH:mm" },
+        { "id": "omarchy.keyboard-layout" }
+      ],
+      "right": [
+        { "id": "omarchy.audio" },
+        { "id": "omarchy.network" },
+        { "id": "omarchy.bluetooth" },
+        { "id": "omarchy.monitor" },
+        { "id": "omarchy.power" },
+        { "id": "omarchy.tray" }
+      ]
+    }
+  },
+  "plugins": [
+    { "id": "io.github.claudsondouglas.arcdock" },
+    { "id": "omarchy.notifications" },
+    { "id": "omarchy.osd" },
+    { "id": "omarchy.lock" },
+    { "id": "omarchy.idle" },
+    { "id": "omarchy.polkit" }
+  ]
+}

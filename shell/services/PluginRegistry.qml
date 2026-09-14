@@ -8,7 +8,8 @@ QtObject {
   id: registry
 
   property string home: Quickshell.env("HOME")
-  property string pluginsDir: home + "/.config/omarchy/plugins"
+  property string xdgConfigHome: Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")
+  property string pluginsDir: xdgConfigHome + "/itterum-shell/plugins"
 
   // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
@@ -695,7 +696,7 @@ QtObject {
     // First-party bar widgets can also carry sibling manifests such as
     // widgets/Clock.manifest.json so multiple widgets can live in one source
     // directory without wrapper folders.
-    // Third-party plugins stay at the top level of ~/.config/omarchy/plugins.
+    // Third-party plugins stay at the top level of the Itterum plugin directory.
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "

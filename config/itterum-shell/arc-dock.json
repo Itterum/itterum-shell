@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "pinned": [
+    "foot",
+    "org.gnome.Nautilus",
+    "dev.zed.Zed",
+    "chatgpt",
+    "obsidian",
+    "com.brave.Browser",
+    "com.google.Chrome",
+    "org.telegram.desktop",
+    "bruno"
+  ],
+  "settings": {
+    "dockTheme": "theme",
+    "magnifyScale": 111,
+    "edge": "bottom",
+    "autoHide": "covered"
+  }
+}
