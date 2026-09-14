@@ -12,7 +12,7 @@ package_path=$(nix build --no-link --print-out-paths \
 runtime="$package_path/share/itterum-shell"
 config="$runtime/config/shell.json"
 
-if grep -RIEq 'OMARCHY_PATH|/usr/share/omarchy|\.config/omarchy' "$runtime"; then
+if grep -RIEq 'OMARCHY_PATH|/usr/share/omarchy|\.config/omarchy|\.local/state/omarchy' "$runtime"; then
   fail "runtime uses only Itterum and XDG resource paths"
 fi
 pass "runtime uses only Itterum and XDG resource paths"

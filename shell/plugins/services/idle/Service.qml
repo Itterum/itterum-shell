@@ -11,7 +11,8 @@ Item {
   property var shell: null
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string stayAwakeStateDir: home + "/.local/state/omarchy/indicators"
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")
+  readonly property string stayAwakeStateDir: stateHome + "/itterum-shell/indicators"
   readonly property string stayAwakeStatePath: stayAwakeStateDir + "/stay-awake"
   readonly property int defaultScreensaverSeconds: 150
   readonly property int defaultLockSeconds: 300
@@ -208,8 +209,8 @@ Item {
 
   function persistStayAwake(value) {
     var command = value
-      ? "mkdir -p \"$HOME/.local/state/omarchy/indicators\" && touch \"$HOME/.local/state/omarchy/indicators/stay-awake\""
-      : "rm -f \"$HOME/.local/state/omarchy/indicators/stay-awake\""
+      ? "mkdir -p \"$1\" && touch \"$2\""
+      : "rm -f \"$2\""
 
     if (stayAwakeStateWriter.running) {
       root.pendingStayAwakePersist = !!value
@@ -217,7 +218,7 @@ Item {
       return
     }
 
-    stayAwakeStateWriter.command = ["bash", "-lc", command]
+    stayAwakeStateWriter.command = ["bash", "-c", command, "bash", root.stayAwakeStateDir, root.stayAwakeStatePath]
     stayAwakeStateWriter.running = true
   }
 
@@ -300,7 +301,7 @@ Item {
 
   Process {
     id: stayAwakeStateProbe
-    command: ["bash", "-c", "mkdir -p \"$HOME/.local/state/omarchy/indicators\"; if [[ -f $HOME/.local/state/omarchy/indicators/stay-awake ]]; then echo yes; else echo no; fi"]
+    command: ["bash", "-c", "mkdir -p \"$1\"; if [[ -f \"$2\" ]]; then echo yes; else echo no; fi", "bash", root.stayAwakeStateDir, root.stayAwakeStatePath]
     stdout: SplitParser {
       onRead: function(line) { root.applyStayAwake(String(line).trim() === "yes", false, "state-file") }
     }

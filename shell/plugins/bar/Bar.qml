@@ -41,6 +41,9 @@ Item {
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   property string home: Quickshell.env("HOME")
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")
+  readonly property string barStateDir: stateHome + "/itterum-shell/toggles"
+  readonly property string barHiddenPath: barStateDir + "/bar-off"
   property string stateHome: home + "/.local/state"
   property string omarchyConfigDir: (Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")) + "/itterum-shell"
   property var fallbackBarConfig: ({
@@ -1168,11 +1171,11 @@ Item {
   Process {
     id: barHiddenProbe
     running: true
-    command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
+    command: ["bash", "-c", "[[ -f \"$1\" ]] && echo yes || echo no", "bash", root.barHiddenPath]
     stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
   }
   FileView {
-    path: root.home + "/.local/state/omarchy/toggles"
+    path: root.barStateDir
     watchChanges: true
     printErrors: false
     onFileChanged: barHiddenProbe.running = true
