@@ -2,3 +2,6 @@
 # Python bytecode (orchestrator)
 __pycache__/
 *.pyc
+
+# Rust build output
+daemon/target/

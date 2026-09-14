@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -euo pipefail
+
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+
+tests=(
+  "$ROOT/test/shell.d/package-test.sh"
+)
+
+for test in "${tests[@]}"; do
+  printf '==> %s\n' "${test#$ROOT/}"
+  bash "$test"
+done
+
+printf '\nAll %d Itterum Shell test files passed.\n' "${#tests[@]}"
