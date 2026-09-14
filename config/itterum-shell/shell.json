@@ -1,5 +1,20 @@
 {
   "version": 1,
+  "applications": [
+    "itterum-helix",
+    "dev.zed.Zed",
+    "foot",
+    "itterum-codex-cli",
+    "com.openai.codex",
+    "md.obsidian.Obsidian",
+    "com.usebruno.Bruno",
+    "org.gnome.Nautilus",
+    "org.gnome.DiskUtility",
+    "itterum-zellij",
+    "org.telegram.desktop",
+    "com.brave.Browser",
+    "google-chrome"
+  ],
   "idle": {
     "screensaver": 150,
     "lock": 300

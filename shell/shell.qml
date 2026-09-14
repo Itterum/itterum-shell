@@ -19,7 +19,10 @@ ShellRoot {
   // own empty copies.
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
-  property AppLibrary appLibrary: AppLibrary { }
+  property AppLibrary appLibrary: AppLibrary {
+    allowlist: shell.shellConfig && Array.isArray(shell.shellConfig.applications)
+      ? shell.shellConfig.applications : []
+  }
   property Compositor compositor: Compositor { }
 
   function syncCompositorStyle() {
@@ -30,6 +33,14 @@ ShellRoot {
     target: compositor
     function onRoundingChanged() { shell.syncCompositorStyle() }
     function onGapsOutChanged() { shell.syncCompositorStyle() }
+  }
+
+  Connections {
+    target: appLibrary
+    function onLaunchFeedbackRequested(visible, message) {
+      if (visible) shell.summon("omarchy.osd", JSON.stringify({ icon: "󱓞", message: message, duration: 0 }))
+      else shell.hide("omarchy.osd")
+    }
   }
 
   property string home: Quickshell.env("HOME")

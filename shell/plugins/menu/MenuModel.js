@@ -384,22 +384,8 @@ function displayRow(items, itemOrder, checkedResults, disabledResults, entry, de
   }
 }
 
-// Commands a `checked:` expression reads a value out of. Every sibling row
-// asks the same one -- Defaults > Browser has seven rows all comparing
-// against `omarchy-default-browser` -- so the batch runs it once and the rows
-// read the captured answer.
-//
-// The capture has to be eager. These are read inside `$(...)`, and a value
-// cached while one expression runs lives in that subshell only, so a lazy
-// memo never survives to the expression after it.
-var GUARD_READERS = [
-  "omarchy-channel-current",
-  "omarchy-default-agent",
-  "omarchy-default-browser",
-  "omarchy-default-editor",
-  "omarchy-default-terminal",
-  "omarchy-dns"
-]
+// The declarative menu does not execute distribution-specific value readers.
+var GUARD_READERS = []
 
 // The declarative Itterum menu ships no package-presence guards.
 function guardHelpers() { return "" }

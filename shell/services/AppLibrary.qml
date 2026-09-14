@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import "AppSearch.js" as AppSearch
+import "DesktopEntryFilter.js" as DesktopEntryFilter
 
 // Shared desktop-application library: the sorted entry list with hidden-entry
 // filtering, the icon fallback index, launch feedback, and entry removal.
@@ -12,6 +13,7 @@ Item {
   id: root
 
   property string resourcePath: Quickshell.env("ITTERUM_SHELL_PATH")
+  property var allowlist: []
 
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
@@ -35,6 +37,7 @@ Item {
   // Emitted whenever the visible application set may have changed: desktop
   // entries appeared or vanished, or the hidden-entry filters reloaded.
   signal appsChanged()
+  signal launchFeedbackRequested(bool visible, string message)
 
   function entryName(entry) {
     return AppSearch.entryName(entry)
@@ -51,7 +54,8 @@ Item {
 
   function sortedEntries(query) {
     var values = DesktopEntries.applications.values || []
-    return AppSearch.sortedEntries(values, query, function(entry) { return root.isHiddenEntry(entry) })
+    var visible = DesktopEntryFilter.visible(values, root.allowlist)
+    return AppSearch.sortedEntries(visible, query, function(entry) { return root.isHiddenEntry(entry) })
   }
 
   function iconSource(icon) {
@@ -165,7 +169,7 @@ Item {
     launchDelay.stop()
     launchTimeout.stop()
     if (root.launchOsdOpen) {
-      Quickshell.execDetached(["omarchy-shell", "osd", "close"])
+      root.launchFeedbackRequested(false, "")
       root.launchOsdOpen = false
     }
   }
@@ -236,7 +240,7 @@ Item {
     onTriggered: {
       if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
       root.launchOsdOpen = true
-      Quickshell.execDetached(["omarchy-shell", "osd", "show", JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })])
+      root.launchFeedbackRequested(true, root.launchOsdMessage)
     }
   }
 
